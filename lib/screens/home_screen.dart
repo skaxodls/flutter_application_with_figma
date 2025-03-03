@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       setState(() {
-        serverStatus = "연결 오류: $e"; // 🔧 예외 발생 시 오류 메시지 표시
+        serverStatus = "연결 오류~~~~~~~~~~~~~~~~~~~~~~~~~: $e"; // 🔧 예외 발생 시 오류 메시지 표시
       });
     }
   }
