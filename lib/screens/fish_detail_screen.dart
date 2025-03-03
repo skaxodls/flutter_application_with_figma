@@ -122,7 +122,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               ),
               child: Column(
                 children: [
-                  Image.asset('assets/images/fish_image6.png', height: 120),
+                  Image.asset('assets/images/fish_image5.png', height: 120),
                   const SizedBox(height: 10),
                   Text(widget.fishName,
                       style: const TextStyle(
