@@ -1,5 +1,6 @@
 import 'dart:convert'; // 🔧 Flask JSON 응답 처리를 위해 추가
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_application_with_figma/screens/community_screen.dart';
@@ -348,6 +349,12 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                   builder: (context) => const MarketPriceScreen()),
+            );
+          } else if (index == 4) {
+             // ✅ 마이페이지 탭 클릭 시
+             Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPageScreen()),
             );
           }
         },
