@@ -1,25 +1,44 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'fish_detail_screen.dart';
 
 class PictorialBookScreen extends StatefulWidget {
-  const PictorialBookScreen({super.key});
+  const PictorialBookScreen({Key? key}) : super(key: key);
 
   @override
   State<PictorialBookScreen> createState() => _PictorialBookScreenState();
 }
 
 class _PictorialBookScreenState extends State<PictorialBookScreen> {
-  final List<Map<String, dynamic>> _fishData = [
-    {"number": 1, "price": 0},
-    {"number": 2, "price": 0},
-    {"number": 3, "price": 0},
-    {"number": 4, "price": 0},
-    {"number": 5, "price": 0},
-  ];
+  // 백엔드 API에서 물고기 데이터를 받아올 Future 변수
+  Future<List<dynamic>>? fishDataFuture;
 
-  /// ✅ 총 가격 계산 함수
-  int _calculateTotalPrice() {
-    return _fishData.fold(0, (sum, item) => sum + (item["price"] as int));
+  @override
+  void initState() {
+    super.initState();
+    fishDataFuture = fetchFishData();
+  }
+
+  // API 엔드포인트를 호출하여 데이터를 가져옴 (URL은 실제 서버 주소로 수정)
+  Future<List<dynamic>> fetchFishData() async {
+    final response =
+        await http.get(Uri.parse('http://127.0.0.1:5000/api/fishes'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('데이터 로드 실패');
+    }
+  }
+
+  /// 총 가격 계산 함수 (만약 API 응답에 price 필드가 있을 경우)
+  int _calculateTotalPrice(List<dynamic> fishes) {
+    int total = 0;
+    for (var fish in fishes) {
+      // fish["price"]가 null일 경우 0, null이 아니면 num으로 캐스팅 후 toInt()
+      total += ((fish["price"] ?? 0) as num).toInt();
+    }
+    return total;
   }
 
   @override
@@ -40,122 +59,163 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 🔵 카테고리 선택 바 (배경 흰색, 간격 조정)
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.white,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      body: FutureBuilder<List<dynamic>>(
+        future: fishDataFuture,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final fishes = snapshot.data!;
+            // 예제에서는 taxonomy에 따라 농어과와 도미과로 분류합니다.
+            final nongEoFishes = fishes
+                .where((fish) => (fish['taxonomy'] as String).contains("농어과"))
+                .toList();
+            final domiFishes = fishes
+                .where((fish) => (fish['taxonomy'] as String).contains("도미과"))
+                .toList();
+
+            return Column(
               children: [
-                Column(
-                  children: [
-                    Image.asset('assets/icons/fish_icon5.png', height: 40),
-                    const SizedBox(height: 4),
-                    const Text("농어과",
-                        style: TextStyle(fontSize: 12, color: Colors.black)),
-                  ],
+                // 🔵 카테고리 선택 바
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  color: Colors.white,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Column(
+                        children: [
+                          Image.asset('assets/icons/fish_icon5.png',
+                              height: 40),
+                          const SizedBox(height: 4),
+                          const Text("농어과",
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.black)),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Image.asset('assets/icons/fish_icon6.png',
+                              height: 40),
+                          const SizedBox(height: 4),
+                          const Text("도미과",
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.black)),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          const Icon(Icons.add, color: Colors.black, size: 40),
+                          const SizedBox(height: 4),
+                          const Text("추가중",
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.black)),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          const Icon(Icons.add, color: Colors.black, size: 40),
+                          const SizedBox(height: 4),
+                          const Text("추가중",
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.black)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                Column(
-                  children: [
-                    Image.asset('assets/icons/fish_icon6.png', height: 40),
-                    const SizedBox(height: 4),
-                    const Text("도미과",
-                        style: TextStyle(fontSize: 12, color: Colors.black)),
-                  ],
+                // 🔴 싯가 총액 표시
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  color: const Color(0xFFC3D8FF),
+                  width: double.infinity,
+                  child: Text(
+                    "싯가 총액: ${_calculateTotalPrice(fishes)}원",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFFF5E5E),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                Column(
-                  children: [
-                    const Icon(Icons.add, color: Colors.black, size: 40),
-                    const SizedBox(height: 4),
-                    const Text("추가중",
-                        style: TextStyle(fontSize: 12, color: Colors.black)),
-                  ],
-                ),
-                Column(
-                  children: [
-                    const Icon(Icons.add, color: Colors.black, size: 40),
-                    const SizedBox(height: 4),
-                    const Text("추가중",
-                        style: TextStyle(fontSize: 12, color: Colors.black)),
-                  ],
+                // 물고기 목록 표시
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 🟢 농어과 섹션
+                        const Text(
+                          "농어과",
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          // 카드의 가로·세로 비율 조정 (예: 0.75 ~ 0.8 사이로 테스트)
+                          childAspectRatio: 0.75,
+                          children: List.generate(nongEoFishes.length, (index) {
+                            final fish = nongEoFishes[index];
+                            return _FishCard(
+                              fishId: fish['fish_id'],
+                              fishName: fish['fish_name'],
+                              scientificName: fish['scientific_name'],
+                              price: fish['price'] ?? 0, // 만약 price 필드가 없으면 0
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                        // 🔴 도미과 섹션
+                        const Text(
+                          "도미과",
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          // 카드의 가로·세로 비율 조정
+                          childAspectRatio: 0.75,
+                          children: List.generate(domiFishes.length, (index) {
+                            final fish = domiFishes[index];
+                            return _FishCard(
+                              fishId: fish['fish_id'],
+                              fishName: fish['fish_name'],
+                              scientificName: fish['scientific_name'],
+                              price: fish['price'] ?? 0,
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
-
-          // 🔴 싯가 총액 표시 (디자인 적용)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-            color: const Color(0xFFC3D8FF),
-            width: double.infinity,
-            child: Text(
-              "싯가 총액: ${_calculateTotalPrice()}원",
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFFF5E5E),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // 📌 물고기 목록
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 🟢 농어과 섹션 (3개)
-                  const Text(
-                    "농어과",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    children: List.generate(3, (index) {
-                      return _FishCard(number: _fishData[index]["number"]);
-                    }),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 🔴 도미과 섹션 (2개)
-                  const Text(
-                    "도미과",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    children: List.generate(2, (index) {
-                      return _FishCard(number: _fishData[index + 3]["number"]);
-                    }),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            );
+          } else if (snapshot.hasError) {
+            return Center(child: Text('데이터 로드 실패: ${snapshot.error}'));
+          } else {
+            return const Center(child: CircularProgressIndicator());
+          }
+        },
       ),
-
-      // 🟡 하단 네비게이션 바 (홈 화면과 동일하게 유지)
+      // 🟡 하단 네비게이션 바
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 2, // ✅ "도감" 탭 활성화
+        currentIndex: 2,
         onTap: (index) {
           // 네비게이션 로직 추가 가능
         },
@@ -171,36 +231,39 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
   }
 }
 
-// 🐟 물고기 카드 위젯 (고정 크기 + 물고기명 영역만 흰색 배경)
+// 🐟 물고기 카드 위젯
 class _FishCard extends StatelessWidget {
-  final int number;
-  final String fishName = "넙치농어";
-  final String scientificName = "scientific name";
+  final int fishId;
+  final String fishName;
+  final String scientificName;
+  final int price;
 
   const _FishCard({
-    required this.number,
-    // required this.fishName,
-    // required this.scientificName,
-  });
+    Key? key,
+    required this.fishId,
+    required this.fishName,
+    required this.scientificName,
+    required this.price,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        // 물고기 상세 페이지로 이동 (FishDetailScreen에서 추가 데이터 표시)
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => FishDetailScreen(
-              fishNumber: number,
-              fishName: fishName, // ✅ 물고기명 전달
-              scientificName: scientificName, // ✅ 학명 전달
+              fishNumber: fishId,
+              fishName: fishName,
+              scientificName: scientificName,
             ),
           ),
         );
       },
       child: Container(
-        width: 160,
-        height: 200,
+        // width, height 제거하여 GridView에 맞게 자동 조절
         decoration: BoxDecoration(
           color: const Color(0xFFC3D8FF),
           borderRadius: BorderRadius.circular(10),
@@ -221,7 +284,7 @@ class _FishCard extends StatelessWidget {
               top: 4,
               left: 6,
               child: Text(
-                "No.$number",
+                "No.$fishId",
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -241,9 +304,9 @@ class _FishCard extends StatelessWidget {
                     "싯가 손익",
                     style: TextStyle(fontSize: 12, color: Colors.black),
                   ),
-                  const Text(
-                    "0원",
-                    style: TextStyle(
+                  Text(
+                    "$price원",
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
@@ -260,12 +323,12 @@ class _FishCard extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          fishName, // ✅ 전달받은 물고기명 표시
+                          fishName,
                           style: const TextStyle(
                               fontSize: 12, color: Colors.black),
                         ),
                         Text(
-                          scientificName, // ✅ 전달받은 학명 표시
+                          scientificName,
                           style: const TextStyle(
                               fontSize: 10, color: Colors.black),
                         ),
