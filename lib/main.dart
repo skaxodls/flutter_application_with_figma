@@ -20,3 +20,5 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+//.\.venv\Scripts\Activate.ps1

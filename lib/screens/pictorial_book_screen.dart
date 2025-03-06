@@ -31,11 +31,10 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
     }
   }
 
-  /// 총 가격 계산 함수 (만약 API 응답에 price 필드가 있을 경우)
+  /// 총 가격 계산 함수 (API 응답에 price 필드가 포함되어 있다고 가정)
   int _calculateTotalPrice(List<dynamic> fishes) {
     int total = 0;
     for (var fish in fishes) {
-      // fish["price"]가 null일 경우 0, null이 아니면 num으로 캐스팅 후 toInt()
       total += ((fish["price"] ?? 0) as num).toInt();
     }
     return total;
@@ -55,7 +54,9 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: () {}, // 도움말 기능 추가 가능
+            onPressed: () {
+              // 도움말 기능 추가 가능
+            },
           ),
         ],
       ),
@@ -64,7 +65,7 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             final fishes = snapshot.data!;
-            // 예제에서는 taxonomy에 따라 농어과와 도미과로 분류합니다.
+            // taxonomy에 따라 농어과와 도미과로 분류 (필요시 조건 수정)
             final nongEoFishes = fishes
                 .where((fish) => (fish['taxonomy'] as String).contains("농어과"))
                 .toList();
@@ -159,15 +160,17 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
-                          // 카드의 가로·세로 비율 조정 (예: 0.75 ~ 0.8 사이로 테스트)
                           childAspectRatio: 0.75,
                           children: List.generate(nongEoFishes.length, (index) {
                             final fish = nongEoFishes[index];
                             return _FishCard(
                               fishId: fish['fish_id'],
                               fishName: fish['fish_name'],
-                              scientificName: fish['scientific_name'],
-                              price: fish['price'] ?? 0, // 만약 price 필드가 없으면 0
+                              scientificName: fish['scientific_name'] ?? '',
+                              price: fish['price'] ?? 0,
+                              morphologicalInfo:
+                                  fish['morphological_info'] ?? '', // 형태생태정보 추가
+                              taxonomy: fish['taxonomy'] ?? '', // taxonomy 추가
                             );
                           }),
                         ),
@@ -185,15 +188,17 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
-                          // 카드의 가로·세로 비율 조정
                           childAspectRatio: 0.75,
                           children: List.generate(domiFishes.length, (index) {
                             final fish = domiFishes[index];
                             return _FishCard(
                               fishId: fish['fish_id'],
                               fishName: fish['fish_name'],
-                              scientificName: fish['scientific_name'],
+                              scientificName: fish['scientific_name'] ?? '',
                               price: fish['price'] ?? 0,
+                              morphologicalInfo:
+                                  fish['morphological_info'] ?? '', // 형태생태정보 추가
+                              taxonomy: fish['taxonomy'] ?? '', // taxonomy 추가
                             );
                           }),
                         ),
@@ -237,6 +242,8 @@ class _FishCard extends StatelessWidget {
   final String fishName;
   final String scientificName;
   final int price;
+  final String morphologicalInfo; // 형태생태정보 추가
+  final String taxonomy;
 
   const _FishCard({
     Key? key,
@@ -244,13 +251,15 @@ class _FishCard extends StatelessWidget {
     required this.fishName,
     required this.scientificName,
     required this.price,
+    required this.morphologicalInfo, // 생성자에 추가
+    required this.taxonomy,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // 물고기 상세 페이지로 이동 (FishDetailScreen에서 추가 데이터 표시)
+        // 물고기 상세 페이지로 이동
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -258,12 +267,13 @@ class _FishCard extends StatelessWidget {
               fishNumber: fishId,
               fishName: fishName,
               scientificName: scientificName,
+              morphologicalInfo: morphologicalInfo, // 전달받은 형태생태정보 사용
+              taxonomy: taxonomy,
             ),
           ),
         );
       },
       child: Container(
-        // width, height 제거하여 GridView에 맞게 자동 조절
         decoration: BoxDecoration(
           color: const Color(0xFFC3D8FF),
           borderRadius: BorderRadius.circular(10),

@@ -1,20 +1,20 @@
-from flask import Flask, jsonify  # jsonify: 데이터를 JSON 형태로 반환하기 위한 함수
+from flask import Flask, jsonify, request, session, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.mysql import DECIMAL, ENUM
-from sqlalchemy import func  # 이 줄을 파일 상단에 추가
+from sqlalchemy import func
+from flask import send_from_directory
 
 
-
-# Flask 애플리케이션 초기화 및 설정
 app = Flask(__name__)
-CORS(app)  # 다른 도메인에서 오는 요청을 허용
+app.secret_key = "1234"  # 세션 암호화를 위한 비밀키 설정
+CORS(app)
 
-# MariaDB 연결 설정 (형식: mysql+pymysql://사용자:비밀번호@호스트/데이터베이스)
+    
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:0525@127.0.0.1/fishgo'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# SQLAlchemy 데이터베이스 객체 생성
 db = SQLAlchemy(app)
 
 # ----------------------------
@@ -43,7 +43,6 @@ class Fish(db.Model):
     scientific_name = db.Column(db.String(255))
     morphological_info = db.Column(db.Text)
     taxonomy = db.Column(db.String(100))
-    is_registered = db.Column(db.Boolean, default=False)  # 기본값 FALSE (미등록 상태)
 
     def to_json(self):
         return {
@@ -51,8 +50,7 @@ class Fish(db.Model):
             "fish_name": self.fish_name,
             "scientific_name": self.scientific_name,
             "morphological_info": self.morphological_info,
-            "taxonomy": self.taxonomy,
-            "is_registered": self.is_registered
+            "taxonomy": self.taxonomy
         }
 
 # ----------------------------
@@ -65,7 +63,7 @@ class Members(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     username = db.Column(db.String(100), nullable=False)
     region_id = db.Column(db.Integer, db.ForeignKey('region.region_id', ondelete='SET NULL'))
-    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
 
     def to_json(self):
         return {
@@ -78,18 +76,21 @@ class Members(db.Model):
         }
 
 # ----------------------------
-# 4) fish_region 테이블 모델
+# 4) fish_region 테이블 모델 (수정됨)
 # ----------------------------
 class FishRegion(db.Model):
     __tablename__ = 'fish_region'
-    fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), primary_key=True)
-    region_id = db.Column(db.Integer, db.ForeignKey('region.region_id', ondelete='CASCADE'), primary_key=True)
+    fish_region_id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # 물고기지역 고유 ID
+    fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
+    region_id = db.Column(db.Integer, db.ForeignKey('region.region_id', ondelete='CASCADE'), nullable=False)
 
     def to_json(self):
         return {
+            "fish_region_id": self.fish_region_id,
             "fish_id": self.fish_id,
             "region_id": self.region_id
         }
+
 
 # ----------------------------
 # 5) posts 테이블 모델
@@ -102,8 +103,9 @@ class Posts(db.Model):
     content = db.Column(db.Text, nullable=False)
     like_count = db.Column(db.Integer, default=0)
     comment_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
     post_status = db.Column(ENUM('판매중', '예약중', '거래완료'), default='판매중')
+    fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
 
     def to_json(self):
         return {
@@ -114,7 +116,8 @@ class Posts(db.Model):
             "like_count": self.like_count,
             "comment_count": self.comment_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "post_status": self.post_status
+            "post_status": self.post_status,
+            "fish_id": self.fish_id
         }
 
 # ----------------------------
@@ -186,11 +189,12 @@ class FishingLog(db.Model):
     __tablename__ = 'fishing_log'
     log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     region_id = db.Column(db.Integer, db.ForeignKey('region.region_id', ondelete='CASCADE'), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
     fish_length = db.Column(DECIMAL(10,2))
     fish_weight = db.Column(DECIMAL(10,2))
     market_price = db.Column(DECIMAL(10,2))
     fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
+    uid = db.Column(db.Integer, db.ForeignKey('members.uid', ondelete='CASCADE'), nullable=False)
 
     def to_json(self):
         return {
@@ -200,7 +204,8 @@ class FishingLog(db.Model):
             "fish_length": float(self.fish_length) if self.fish_length is not None else None,
             "fish_weight": float(self.fish_weight) if self.fish_weight is not None else None,
             "market_price": float(self.market_price) if self.market_price is not None else None,
-            "fish_id": self.fish_id
+            "fish_id": self.fish_id,
+            "uid": self.uid
         }
 
 # ----------------------------
@@ -247,7 +252,7 @@ class Comments(db.Model):
     content = db.Column(db.Text, nullable=False)
     uid = db.Column(db.Integer, db.ForeignKey('members.uid', ondelete='CASCADE'), nullable=False)
     parent_comment_id = db.Column(db.Integer, db.ForeignKey('comments.comment_id', ondelete='CASCADE'))
-    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
 
     def to_json(self):
         return {
@@ -276,32 +281,103 @@ class PersonalFishingPoint(db.Model):
         }
 
 # ----------------------------
-# 추가된 API 엔드포인트: fish 테이블의 데이터를 JSON 형식으로 반환
+# 14) caught_fish 테이블 모델
 # ----------------------------
-# 파일 상단에 이미 import된 부분: from sqlalchemy import func
+class CaughtFish(db.Model):
+    __tablename__ = 'caught_fish'
+    uid = db.Column(db.Integer, db.ForeignKey('members.uid', ondelete='CASCADE'), primary_key=True)
+    fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), primary_key=True)
+    is_registered = db.Column(db.Boolean, default=False)
+
+    def to_json(self):
+        return {
+            "uid": self.uid,
+            "fish_id": self.fish_id,
+            "is_registered": self.is_registered
+        }
+
+
+#로그인했다고 가정
+@app.before_request
+def simulate_login():
+    # 모든 요청 전에 세션에 uid=1 (user1) 저장하여 로그인 상태로 가정
+    session['uid'] = 1
+
+#도감 페이지에 필요한 API 엔드포인트
 
 @app.route('/api/fishes', methods=['GET'])
 def get_fishes():
     """
-    각 물고기(fish) 별로 fishing_log 테이블에서 해당 fish_id와 일치하는 로그의 market_price 값을 모두 합산하여
+    각 물고기(fish) 별로, 현재 로그인한 사용자가 작성한 fishing_log 테이블에서
+    해당 fish_id와 일치하는 로그의 market_price 값을 모두 합산하여
     fish 객체에 price 필드로 추가한 후 JSON 형식으로 반환하는 API 엔드포인트.
     """
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({"error": "로그인된 사용자가 아닙니다."}), 401
+
     fishes = Fish.query.all()
     results = []
     for fish in fishes:
-        # 해당 물고기의 모든 fishing_log 레코드에서 market_price 값을 합산
         total_price = db.session.query(func.sum(FishingLog.market_price)) \
-                        .filter(FishingLog.fish_id == fish.fish_id) \
-                        .scalar() or 0
+            .filter(FishingLog.fish_id == fish.fish_id) \
+            .filter(FishingLog.uid == uid) \
+            .scalar() or 0
         fish_json = fish.to_json()
-        # 합산된 가격을 정수로 변환하여 price 필드에 추가
         fish_json["price"] = int(total_price)
         results.append(fish_json)
     return jsonify(results)
 
-# 애플리케이션 시작 전에 테이블을 생성 (이미 존재하면 영향을 주지 않음)
+
+#이미지 불러오는 API 엔드포인트
+@app.route('/images/<filename>')
+def get_image(filename):
+    return send_from_directory('static/images', filename)
+
+@app.route('/api/caught_fish', methods=['GET'])
+def get_caught_fish():
+    # 세션에서 uid 가져오기 (simulate_login 에서 uid=1이 저장됨)
+    uid = session.get('uid')
+    fish_id = request.args.get('fish_id', type=int)
+    if uid is None or fish_id is None:
+        return jsonify({"error": "uid와 fish_id 파라미터가 필요합니다."}), 400
+
+    caught_fish_list = CaughtFish.query.filter_by(uid=uid, fish_id=fish_id).all()
+    return jsonify([cf.to_json() for cf in caught_fish_list])
+
+
+
+@app.route('/api/fish_regions', methods=['GET'])
+def get_fish_regions():
+    """
+    특정 물고기(fish_id)에 해당하는 모든 출몰지역(Region) 정보를 반환합니다.
+    GET 파라미터: fish_id
+    """
+    fish_id = request.args.get('fish_id', type=int)
+    if fish_id is None:
+        return jsonify({"error": "fish_id 파라미터가 필요합니다."}), 400
+
+    fish_regions = FishRegion.query.filter_by(fish_id=fish_id).all()
+    results = []
+    for fr in fish_regions:
+        # fr.region_id로 Region 정보를 가져옴
+        region = Region.query.get(fr.region_id)
+        if region:
+            # region 정보(이름, 상세주소) + fish_region_id 등 필요한 정보 결합
+            region_data = {
+                "fish_region_id": fr.fish_region_id,          # fish_region PK
+                "region_id": region.region_id,                # region PK
+                "region_name": region.region_name,            # 지역명
+                "detailed_address": region.detailed_address,  # 상세주소
+            }
+            results.append(region_data)
+    return jsonify(results)
+
+
+# ----------------------------
+# 애플리케이션 시작
+# ----------------------------
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # 데이터베이스에 모든 테이블 생성
-    # Flask 애플리케이션을 디버그 모드로 실행 (서버 주소: 0.0.0.0, 포트: 5000)
+        db.create_all()  # 테이블 생성 (이미 존재하면 영향 없음)
     app.run(debug=True, host='0.0.0.0', port=5000)
