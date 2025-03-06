@@ -54,7 +54,7 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
             SizedBox(width: 10),
-            Image.asset("assets/fish_icon.png", width: 40, height: 40),
+            Image.asset("assets/icons/fish_icon1.png", width: 40, height: 40),
           ],
         ),
         SizedBox(height: 20),
@@ -70,7 +70,8 @@ class LoginScreen extends StatelessWidget {
   }
 
   // 🔹 입력 필드 (아이디 & 비밀번호)
-  Widget _buildInputField(String hint, TextEditingController controller, bool isPassword) {
+  Widget _buildInputField(
+      String hint, TextEditingController controller, bool isPassword) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: TextField(
