@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/screens/login_screen.dart';
+import 'package:flutter_application_with_figma/screens/signup_screen.dart';
 import 'home_screen.dart';
 import 'community_screen.dart';
 import 'market_price_screen.dart';
@@ -18,7 +20,7 @@ class MyPageScreen extends StatelessWidget {
             SizedBox(height: 10),
             _buildLoginSection(),
             SizedBox(height: 15),
-            _buildServiceSection(), // 🔥 로그인 & 회원가입 버튼 추가됨!
+            _buildServiceSection(context), // 🔥 로그인 & 회원가입 버튼 추가됨!
             SizedBox(height: 15),
             _buildServiceSectionIcons(context), // 🔥 context 추가
             SizedBox(height: 15),
@@ -75,7 +77,8 @@ class MyPageScreen extends StatelessWidget {
   }
 
   // 🔹 로그인 & 회원가입 버튼
-  Widget _buildServiceSection() {
+  Widget _buildServiceSection(BuildContext context) {
+    // 🔥 context 추가
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15),
       child: Row(
@@ -83,7 +86,11 @@ class MyPageScreen extends StatelessWidget {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                print("로그인 클릭됨");
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => LoginScreen()), // 🔥 로그인 화면 이동 추가
+                );
               },
               child: Container(
                 height: 45,
@@ -94,7 +101,9 @@ class MyPageScreen extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   '로그인',
-                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -103,7 +112,11 @@ class MyPageScreen extends StatelessWidget {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                print("회원가입 클릭됨");
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => SignUpScreen()), // 🔥 회원가입 화면 이동 추가
+                );
               },
               child: Container(
                 height: 45,
@@ -114,7 +127,9 @@ class MyPageScreen extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   '회원가입',
-                  style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -123,6 +138,7 @@ class MyPageScreen extends StatelessWidget {
       ),
     );
   }
+
 
   // 🔹 서비스 (내 낚시 포인트, 어류 도감, 커뮤니티, 싯가)
   Widget _buildServiceSectionIcons(BuildContext context) {
@@ -230,7 +246,8 @@ class MyPageScreen extends StatelessWidget {
       type: BottomNavigationBarType.fixed,
       selectedItemColor: Colors.black,
       unselectedItemColor: Colors.black,
-      currentIndex: 4, // ✅ "마이페이지" 탭 활성화
+      currentIndex: 4,
+      // ✅ "마이페이지" 탭 활성화
       onTap: (index) {
         if (index == 0) {
           Navigator.pushReplacement(
@@ -282,7 +299,11 @@ class MyPageScreen extends StatelessWidget {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                print("로그인 화면 이동"); // 👉 여기에 로그인 화면 이동 코드 추가 가능
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => LoginScreen()), // 🔥 로그인 화면 이동 추가
+                );
               },
               child: Text("로그인"),
             ),
