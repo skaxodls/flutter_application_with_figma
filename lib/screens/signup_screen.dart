@@ -55,7 +55,11 @@ class SignUpScreen extends StatelessWidget {
               ),
             ),
             SizedBox(width: 10),
+<<<<<<< HEAD
+            Image.asset("assets/icons/fish_icon1.png", width: 40, height: 40),
+=======
             Image.asset("assets/fish_icon.png", width: 40, height: 40),
+>>>>>>> 392a4f26b44fc67d07037a350e9105bb2bbb77ac
           ],
         ),
       ],
