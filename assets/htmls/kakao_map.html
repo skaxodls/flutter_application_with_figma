@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Kakao Map</title>
+  <!-- 제공해주신 Kakao JS API 키를 사용 -->
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=be680803e7b04c426b6e4b1666b17e67"></script>
+  <style>
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // 지도 초기화
+    var container = document.getElementById('map');
+    var options = {
+      center: new kakao.maps.LatLng(33.450701, 126.570667), // 기본 중심 좌표
+      level: 3 // 지도 확대 레벨
+    };
+    var map = new kakao.maps.Map(container, options);
+  </script>
+</body>
+</html>

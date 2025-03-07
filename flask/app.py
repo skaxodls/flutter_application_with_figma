@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, session, send_from_directory
+from flask import Flask, jsonify, request, session, send_from_directory, render_template
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.mysql import DECIMAL, ENUM
@@ -16,6 +16,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:0525@127.0.0.1/fis
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+# 카카오 API 키 설정 (실제 API 키로 변경해야 함)
+KAKAO_REST_API_KEY = "d4c06433cf81d2ad087c6bd0381b36d7"
+KAKAO_JS_API_KEY = "be680803e7b04c426b6e4b1666b17e67"
 
 # ----------------------------
 # 1) region 테이블 모델
@@ -373,6 +377,10 @@ def get_fish_regions():
             results.append(region_data)
     return jsonify(results)
 
+
+@app.route('/kakao_map.html')
+def kakao_map():
+    return render_template('kakao_map.html')
 
 # ----------------------------
 # 애플리케이션 시작

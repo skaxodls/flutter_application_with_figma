@@ -44,6 +44,9 @@ dev_dependencies:
   http: ^1.3.0
   intl: ^0.18.0
   webview_flutter: ^4.10.0
+  # webview_windows: ^0.4.0
+  webview_windows:
+    path: packages/webview_windows-0.4.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -63,6 +66,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/htmls/kakao_map.html
     - assets/icons/fish_icon1.png
     - assets/icons/fish_icon2.png
     - assets/icons/book_icon.png

@@ -4,8 +4,9 @@ import 'package:http/http.dart' as http;
 import 'fish_detail_screen.dart';
 
 import 'package:intl/intl.dart'; // 날짜 선택을 위한 패키지
-import 'package:webview_flutter/webview_flutter.dart'; // 카카오 지도 API를 위한 웹뷰 패키지
+//import 'package:webview_flutter/webview_flutter.dart'; // 카카오 지도 API를 위한 웹뷰 패키지
 import 'package:flutter_application_with_figma/screens/kakao_map_screen.dart'; // 카카오 지도 다이얼로그 화면
+import 'package:webview_windows/webview_windows.dart';
 
 class FishDetailScreen extends StatefulWidget {
   final int fishNumber;
@@ -38,7 +39,6 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     });
   }
 
-// ✅ 낚시 로그 추가 다이얼로그
   void _showAddLogDialog() {
     TextEditingController locationController = TextEditingController();
     TextEditingController dateController = TextEditingController();
@@ -46,7 +46,6 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     TextEditingController weightController = TextEditingController();
     TextEditingController priceController = TextEditingController();
 
-    // ✅ 날짜 선택 함수
     Future<void> _selectDate() async {
       DateTime? picked = await showDatePicker(
         context: context,
@@ -66,13 +65,14 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
       final selectedLocation = await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => KakaoMapScreen(), // ✅ 파일명 일치
+          builder: (context) => const KakaoMapScreen(),
         ),
       );
 
       if (selectedLocation != null) {
         setState(() {
-          locationController.text = selectedLocation;
+          // 지도에서 선택한 주소를 낚시 포인트 입력란에 반영
+          locationController.text = selectedLocation.toString();
         });
       }
     }
@@ -87,6 +87,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
             children: [
               TextField(
                 controller: locationController,
+                readOnly: true,
                 decoration: InputDecoration(
                   labelText: "낚시 포인트",
                   suffixIcon: IconButton(
@@ -94,10 +95,10 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                     onPressed: _selectLocation,
                   ),
                 ),
-                readOnly: true,
               ),
               TextField(
                 controller: dateController,
+                readOnly: true,
                 decoration: InputDecoration(
                   labelText: "일시",
                   suffixIcon: IconButton(
@@ -105,7 +106,6 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                     onPressed: _selectDate,
                   ),
                 ),
-                readOnly: true,
               ),
               TextField(
                 controller: lengthController,
