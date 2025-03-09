@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'fish_detail_screen.dart';
+import 'dart:io';
 
 import 'package:intl/intl.dart'; // 날짜 선택을 위한 패키지
 //import 'package:webview_flutter/webview_flutter.dart'; // 카카오 지도 API를 위한 웹뷰 패키지
 import 'package:flutter_application_with_figma/screens/kakao_map_screen.dart'; // 카카오 지도 다이얼로그 화면
-import 'package:webview_windows/webview_windows.dart';
+
+import 'package:image_picker/image_picker.dart'; // 이미지 선택을 위한 패키지
 
 class FishDetailScreen extends StatefulWidget {
   final int fishNumber;
@@ -39,12 +40,16 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     });
   }
 
-  void _showAddLogDialog() {
+  Future<void> _showAddLogDialog() async {
+    // 각 입력 필드용 TextEditingController 생성
     TextEditingController locationController = TextEditingController();
     TextEditingController dateController = TextEditingController();
     TextEditingController lengthController = TextEditingController();
     TextEditingController weightController = TextEditingController();
     TextEditingController priceController = TextEditingController();
+
+    // 선택한 이미지 경로를 저장할 변수
+    String? selectedImagePath;
 
     Future<void> _selectDate() async {
       DateTime? picked = await showDatePicker(
@@ -54,13 +59,11 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
         lastDate: DateTime(2101),
       );
       if (picked != null) {
-        setState(() {
-          dateController.text = DateFormat('yyyy-MM-dd').format(picked);
-        });
+        dateController.text = DateFormat('yyyy-MM-dd').format(picked);
       }
     }
 
-    // ✅ 카카오 지도에서 위치 선택
+    // 카카오 지도에서 위치 선택
     Future<void> _selectLocation() async {
       final selectedLocation = await Navigator.push(
         context,
@@ -68,89 +71,139 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
           builder: (context) => const KakaoMapScreen(),
         ),
       );
-
       if (selectedLocation != null) {
-        setState(() {
-          // 지도에서 선택한 주소를 낚시 포인트 입력란에 반영
-          locationController.text = selectedLocation.toString();
-        });
+        locationController.text = selectedLocation.toString();
       }
     }
 
-    showDialog(
+    // 이미지 선택 함수 (image_picker 사용)
+    Future<void> _selectImage() async {
+      final ImagePicker _picker = ImagePicker();
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        selectedImagePath = image.path;
+        print("선택된 이미지 경로: $selectedImagePath");
+      } else {
+        print("이미지 선택 취소");
+      }
+    }
+
+    // 다이얼로그 열고 새 로그를 반환받음
+    final newLog = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("낚시 로그 추가"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: locationController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: "낚시 포인트",
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.map),
-                    onPressed: _selectLocation,
-                  ),
+        // 내부 상태 변경을 위해 StatefulBuilder 사용
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: const Text("낚시 로그 추가"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1. 이미지 선택 영역 (다이얼로그 맨 위에 배치)
+                    GestureDetector(
+                      onTap: () async {
+                        await _selectImage();
+                        // 다이얼로그 내부 상태 갱신
+                        setState(() {});
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: selectedImagePath != null
+                            ? Image.file(
+                                File(selectedImagePath!),
+                                fit: BoxFit.cover,
+                              )
+                            : const Center(child: Text("이미지 선택 (클릭)")),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // 2. 낚시 포인트 (카카오 지도 선택)
+                    TextField(
+                      controller: locationController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: "낚시 포인트",
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.map),
+                          onPressed: _selectLocation,
+                        ),
+                      ),
+                    ),
+                    // 3. 일시 선택
+                    TextField(
+                      controller: dateController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: "일시",
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.calendar_today),
+                          onPressed: _selectDate,
+                        ),
+                      ),
+                    ),
+                    // 4. 체장 입력
+                    TextField(
+                      controller: lengthController,
+                      decoration: const InputDecoration(labelText: "체장 (cm)"),
+                      keyboardType: TextInputType.number,
+                    ),
+                    // 5. 무게 입력
+                    TextField(
+                      controller: weightController,
+                      decoration: const InputDecoration(labelText: "무게 (kg)"),
+                      keyboardType: TextInputType.number,
+                    ),
+                    // 6. 예상 싯가 입력
+                    TextField(
+                      controller: priceController,
+                      decoration: const InputDecoration(
+                        labelText: "예상 싯가",
+                        suffixText: "₩",
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
                 ),
               ),
-              TextField(
-                controller: dateController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: "일시",
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: _selectDate,
-                  ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("취소"),
                 ),
-              ),
-              TextField(
-                controller: lengthController,
-                decoration: const InputDecoration(labelText: "체장 (cm)"),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: weightController,
-                decoration: const InputDecoration(labelText: "무게 (kg)"),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: "예상 싯가",
-                  suffixText: "₩",
+                TextButton(
+                  onPressed: () {
+                    // 새 로그 데이터를 생성하여 반환
+                    final newLogData = {
+                      "location": locationController.text,
+                      "date": dateController.text,
+                      "length": lengthController.text,
+                      "weight": weightController.text,
+                      "price": priceController.text,
+                      "image": selectedImagePath ?? "",
+                    };
+                    Navigator.pop(context, newLogData);
+                  },
+                  child: const Text("추가"),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("취소"),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _fishingLogs.add({
-                    "location": locationController.text,
-                    "date": dateController.text,
-                    "length": lengthController.text,
-                    "weight": weightController.text,
-                    "price": priceController.text,
-                  });
-                });
-                Navigator.pop(context);
-              },
-              child: const Text("추가"),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
+
+    if (newLog != null) {
+      setState(() {
+        _fishingLogs.add(newLog);
+      });
+    }
   }
 
   // 현재 로그인한 사용자가 잡은 물고기가 등록되었는지 확인하는 API 호출
@@ -335,7 +388,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               content: widget.taxonomy,
             ),
             const SizedBox(height: 16),
-            // 🎣 낚시 로그 섹션
+            // 낚시 로그 섹션 (로그 목록 출력)
             if (_fishingLogs.isNotEmpty) ...[
               Container(
                 width: double.infinity,
@@ -383,12 +436,38 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                           ),
                           child: Row(
                             children: [
-                              Image.asset(
-                                'assets/images/fish_image5.png',
-                                width: 80,
-                                height: 60,
-                                fit: BoxFit.cover,
-                              ),
+                              // 이미지 표시: 업로드한 이미지가 있으면 로컬 파일에서 읽고, 없으면 기본 이미지 사용
+                              Builder(builder: (context) {
+                                if (log["image"] != null &&
+                                    log["image"].toString().isNotEmpty) {
+                                  String imgPath = log["image"].toString();
+                                  if (imgPath.startsWith("http")) {
+                                    // 이미 URL 형식이면 네트워크 이미지로
+                                    return Image.network(
+                                      imgPath,
+                                      width: 80,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                    );
+                                  } else {
+                                    // 로컬 파일 경로이면 Image.file로 표시
+                                    return Image.file(
+                                      File(imgPath),
+                                      width: 80,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                    );
+                                  }
+                                } else {
+                                  // 이미지가 없을 경우 기본 아이콘 혹은 회색 박스 표시
+                                  return Container(
+                                    width: 80,
+                                    height: 60,
+                                    color: Colors.grey[300],
+                                    child: const Icon(Icons.image, size: 40),
+                                  );
+                                }
+                              }),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
@@ -398,7 +477,11 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),
                                     Text("일시: ${log["date"]}"),
-                                    Text("체장 / 무게: ${log["size"]}"),
+                                    Text(
+                                      "체장 / 무게: ${log["length"]} cm / ${log["weight"]} kg",
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
                                     Text("예상 싯가: ${log["price"]}원",
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),

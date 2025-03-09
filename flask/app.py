@@ -380,7 +380,12 @@ def get_fish_regions():
 
 @app.route('/kakao_map.html')
 def kakao_map():
-    return render_template('kakao_map.html')
+    """
+    카카오 지도 검색 페이지 반환
+    templates/kakao_map.html 파일을 렌더링하며,
+    필요하다면 API 키를 템플릿에 넘길 수 있음
+    """
+    return render_template('kakao_map.html', api_key=KAKAO_JS_API_KEY)
 
 # ----------------------------
 # 애플리케이션 시작
