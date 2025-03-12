@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'loading_screen.dart'; // ✅ LoadingScreen 추가
+import 'home_screen.dart'; // ✅ 홈 화면 추가
+import 'community_screen.dart'; // ✅ 커뮤니티 화면 추가
+import 'market_price_screen.dart'; // ✅ 싯가 화면 추가
+import 'mypage_screen.dart';
 
 class SelectPhotoScreen extends StatefulWidget {
   const SelectPhotoScreen({super.key});
@@ -164,13 +168,41 @@ class _SelectPhotoScreenState extends State<SelectPhotoScreen> {
         ],
       ),
 
-      // 🟡 하단 네비게이션 바
+      // 🟡 하단 네비게이션 바 (✅ 정상 작동하도록 수정)
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black,
+        unselectedItemColor: const Color(0xFF999999), // 비활성화 아이콘 색상 적용
         type: BottomNavigationBarType.fixed,
-        currentIndex: 0,
-        onTap: (index) {},
+        currentIndex: 0, // ✅ 현재 선택된 탭 (홈)
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const HomeScreen()), // ✅ 홈 화면 이동
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const CommunityScreen()), // ✅ 커뮤니티 화면 이동
+            );
+          } else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const MarketPriceScreen()), // ✅ 싯가 화면 이동
+            );
+          } else if (index == 4) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const MyPageScreen()), // ✅ 마이페이지 이동
+            );
+          }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
           BottomNavigationBarItem(icon: Icon(Icons.message), label: "커뮤니티"),
