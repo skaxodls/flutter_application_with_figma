@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_with_figma/screens/write_screen.dart'; // 🚀 WriteScreen 추가
 import 'package:flutter_application_with_figma/screens/content_reader_screen.dart'; // 🚀 ContentReaderScreen 추가
+import 'home_screen.dart'; // ✅ 홈 화면 추가
+import 'mypage_screen.dart';
+import 'market_price_screen.dart';
 
 class CommunityScreen extends StatelessWidget {
   const CommunityScreen({super.key});
@@ -87,7 +90,31 @@ class CommunityScreen extends StatelessWidget {
         currentIndex: 1, // 현재 선택된 탭 (커뮤니티)
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const HomeScreen()), // ✅ 홈 화면 이동
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const CommunityScreen()), // ✅ 커뮤니티 화면 유지
+            );
+          } else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const MarketPriceScreen()), // ✅ 싯가 화면 이동
+            );
+          } else if (index == 4) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const MyPageScreen()), // ✅ 마이페이지 이동
+            );
           }
         },
         items: const [
