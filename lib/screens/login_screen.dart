@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
+import 'package:flutter_application_with_figma/screens/signup_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   final TextEditingController _idController = TextEditingController();
@@ -7,6 +11,20 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const MyPageScreen()), // ✅ 뒤로가기 → 마이페이지 이동
+            );
+          },
+        ),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -26,12 +44,12 @@ class LoginScreen extends StatelessWidget {
             SizedBox(height: 30),
 
             // 로그인 버튼
-            _buildLoginButton(),
+            _buildLoginButton(context),
 
             SizedBox(height: 15),
 
             // 회원가입 이동 버튼
-            _buildSignUpButton(),
+            _buildSignUpButton(context),
           ],
         ),
       ),
@@ -92,10 +110,16 @@ class LoginScreen extends StatelessWidget {
   }
 
   // 🔹 로그인 버튼
-  Widget _buildLoginButton() {
+  Widget _buildLoginButton(BuildContext context) {
     return GestureDetector(
+      // onTap: () {
+      //   print("로그인 시도: ${_idController.text}, ${_passwordController.text}");
+      // },
       onTap: () {
-        print("로그인 시도: ${_idController.text}, ${_passwordController.text}");
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => MyPageLoginScreen()), //
+        );
       },
       child: Container(
         width: 180,
@@ -118,10 +142,14 @@ class LoginScreen extends StatelessWidget {
   }
 
   // 🔹 회원가입 이동 버튼
-  Widget _buildSignUpButton() {
+  Widget _buildSignUpButton(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        print("회원가입 화면으로 이동");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => SignUpScreen()), // 🔥 회원가입 화면 이동 추가
+        );
       },
       child: Text(
         '회원이 아니신가요? 회원가입',
