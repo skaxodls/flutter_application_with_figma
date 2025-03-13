@@ -33,6 +33,43 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
   // 낚시 로그 리스트 (사용자가 추가한 로그 저장)
   final List<Map<String, dynamic>> _fishingLogs = [];
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchFishingLogs(); // 서버에서 낚시 로그 불러오기
+  }
+
+  // 서버에서 낚시 로그 데이터를 가져오는 함수
+  Future<void> _fetchFishingLogs() async {
+    final url =
+        "http://127.0.0.1:5000/api/fishing_logs?uid=1&fish_id=${widget.fishNumber}";
+
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        List<dynamic> logs = jsonDecode(response.body);
+        setState(() {
+          _fishingLogs.clear();
+          for (var log in logs) {
+            _fishingLogs.add({
+              "location": log["region_name"],
+              "date": log["created_at"], // 생성 날짜
+              "length": log["length"],
+              "weight": log["weight"],
+              "price": log["price"],
+              "image": log["image_url"], // 서버에서 반환하는 이미지 경로
+            });
+          }
+        });
+      } else {
+        print("❌ 낚시 로그 불러오기 실패: ${response.body}");
+      }
+    } catch (e) {
+      print("❌ 오류 발생: $e");
+    }
+  }
+
   // 예상 싯가 합계 계산 함수
   int _calculateTotalEarnings() {
     return _fishingLogs.fold(0, (sum, log) {
@@ -85,6 +122,85 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
         print("선택된 이미지 경로: $selectedImagePath");
       } else {
         print("이미지 선택 취소");
+      }
+    }
+
+    // 서버로 낚시 로그 데이터 전송
+    Future<void> _insertFishingLogToDB({
+      required String location,
+      required String length,
+      required String weight,
+      required String price,
+      required String? imagePath,
+    }) async {
+      final url = "http://127.0.0.1:5000/api/fishing_logs"; // Flask 서버 API
+      String? base64Image;
+      String filename = "fishing_image.jpg";
+      if (imagePath != null && imagePath.isNotEmpty) {
+        File file = File(imagePath);
+        if (file.existsSync()) {
+          // 파일명 추출 (경로 구분자에 따라)
+          filename = file.path.split(Platform.pathSeparator).last;
+          List<int> imageBytes = await file.readAsBytes();
+          base64Image = base64Encode(imageBytes);
+        }
+      }
+
+      final Map<String, dynamic> requestData = {
+        "fish_id": widget.fishNumber,
+        "uid": 1, // 로그인된 사용자 (예시로 1 사용)
+        "region_name": location,
+        "detailed_address": location, // 여기서는 같은 값을 사용
+        "length": length,
+        "weight": weight,
+        "price": price,
+        "base64_image": base64Image ?? "",
+        "filename": filename,
+      };
+
+      try {
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(requestData),
+        );
+        if (response.statusCode == 200) {
+          print("✅ 낚시 로그 추가 성공!");
+        } else {
+          print("❌ 낚시 로그 추가 실패: ${response.body}");
+        }
+      } catch (e) {
+        print("❌ 오류 발생: $e");
+      }
+    }
+
+    Future<void> _fetchFishingLogs() async {
+      final url =
+          "http://127.0.0.1:5000/api/fishing_logs?uid=1&fish_id=${widget.fishNumber}";
+
+      try {
+        final response = await http.get(Uri.parse(url));
+
+        if (response.statusCode == 200) {
+          List<dynamic> logs = jsonDecode(response.body);
+          setState(() {
+            _fishingLogs.clear();
+            for (var log in logs) {
+              _fishingLogs.add({
+                "location": log["region_name"],
+                "date": log["created_at"], // 생성 날짜
+                "length": log["length"],
+                "weight": log["weight"],
+                "price": log["price"],
+                "image": log["image_url"], // 서버에서 반환하는 이미지 경로
+              });
+            }
+          });
+        } else {
+          print("❌ 낚시 로그 불러오기 실패: ${response.body}");
+        }
+      } catch (e) {
+        print("❌ 오류 발생: $e");
       }
     }
 
@@ -174,21 +290,29 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("취소"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // 새 로그 데이터를 생성하여 반환
-                    final newLogData = {
-                      "location": locationController.text,
-                      "date": dateController.text,
-                      "length": lengthController.text,
-                      "weight": weightController.text,
-                      "price": priceController.text,
-                      "image": selectedImagePath ?? "",
-                    };
-                    Navigator.pop(context, newLogData);
+                  onPressed: () async {
+                    // 서버에 낚시 로그 추가 (멀티파트 전송)
+                    await _insertFishingLogToDB(
+                      location: locationController.text,
+                      length: lengthController.text,
+                      weight: weightController.text,
+                      price: priceController.text,
+                      imagePath: selectedImagePath,
+                    );
+                    Navigator.pop(context); // 다이얼로그 닫기
+                    // 전체 화면 새로고침: FishDetailScreen을 다시 로드
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FishDetailScreen(
+                          fishNumber: widget.fishNumber,
+                          fishName: widget.fishName,
+                          scientificName: widget.scientificName,
+                          morphologicalInfo: widget.morphologicalInfo,
+                          taxonomy: widget.taxonomy,
+                        ),
+                      ),
+                    );
                   },
                   child: const Text("추가"),
                 ),
@@ -382,6 +506,12 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               },
             ),
             const SizedBox(height: 16),
+            // 🔹 싯가가 섹션
+            _InfoCard(
+              title: "시가",
+              content: "시가 정보",
+            ),
+            const SizedBox(height: 4),
             // 🔹 계통분류 섹션
             _InfoCard(
               title: "계통분류",
@@ -436,38 +566,21 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                           ),
                           child: Row(
                             children: [
-                              // 이미지 표시: 업로드한 이미지가 있으면 로컬 파일에서 읽고, 없으면 기본 이미지 사용
-                              Builder(builder: (context) {
-                                if (log["image"] != null &&
-                                    log["image"].toString().isNotEmpty) {
-                                  String imgPath = log["image"].toString();
-                                  if (imgPath.startsWith("http")) {
-                                    // 이미 URL 형식이면 네트워크 이미지로
-                                    return Image.network(
-                                      imgPath,
+                              // 이미지 표시: 서버에서 반환된 이미지 사용
+                              log["image"] != null &&
+                                      log["image"].toString().isNotEmpty
+                                  ? Image.network(
+                                      "http://127.0.0.1:5000/static/images/${log["image"]}",
                                       width: 80,
                                       height: 60,
                                       fit: BoxFit.cover,
-                                    );
-                                  } else {
-                                    // 로컬 파일 경로이면 Image.file로 표시
-                                    return Image.file(
-                                      File(imgPath),
+                                    )
+                                  : Container(
                                       width: 80,
                                       height: 60,
-                                      fit: BoxFit.cover,
-                                    );
-                                  }
-                                } else {
-                                  // 이미지가 없을 경우 기본 아이콘 혹은 회색 박스 표시
-                                  return Container(
-                                    width: 80,
-                                    height: 60,
-                                    color: Colors.grey[300],
-                                    child: const Icon(Icons.image, size: 40),
-                                  );
-                                }
-                              }),
+                                      color: Colors.grey[300],
+                                      child: const Icon(Icons.image, size: 40),
+                                    ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
@@ -478,10 +591,9 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                                             fontWeight: FontWeight.bold)),
                                     Text("일시: ${log["date"]}"),
                                     Text(
-                                      "체장 / 무게: ${log["length"]} cm / ${log["weight"]} kg",
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
+                                        "체장 / 무게: ${log["length"]} cm / ${log["weight"]} kg",
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
                                     Text("예상 싯가: ${log["price"]}원",
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),

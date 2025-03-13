@@ -4,13 +4,12 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.mysql import DECIMAL, ENUM
 from sqlalchemy import func
 from flask import send_from_directory
-
+import os
+import base64
 
 app = Flask(__name__)
 app.secret_key = "1234"  # 세션 암호화를 위한 비밀키 설정
 CORS(app)
-
-    
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:0525@127.0.0.1/fishgo'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -386,6 +385,142 @@ def kakao_map():
     필요하다면 API 키를 템플릿에 넘길 수 있음
     """
     return render_template('kakao_map.html', api_key=KAKAO_JS_API_KEY)
+
+
+
+@app.route('/api/fishing_logs', methods=['POST'])
+def create_fishing_log():
+    """
+    JSON 예시:
+    {
+      "fish_id": 1,
+      "uid": 1,
+      "region_name": "서울특별시",
+      "detailed_address": "중구 청파로 123",
+      "length": "30",
+      "weight": "1.2",
+      "price": "5000",
+      "base64_image": "...",
+      "filename": "myfish.jpg"
+    }
+    """
+    data = request.json
+
+    fish_id = data.get('fish_id')
+    uid = data.get('uid')
+    region_name = data.get('region_name')
+    detailed_address = data.get('detailed_address')
+    length = data.get('length')
+    weight = data.get('weight')
+    price = data.get('price')
+    base64_image = data.get('base64_image')
+    filename = data.get('filename') or 'fishing_image.jpg'
+
+    # 1) region_id 획득
+    region_id = get_or_create_region(region_name, detailed_address)
+
+    # 2) fishing_log insert
+    new_log = FishingLog(
+        region_id=region_id,
+        fish_id=fish_id,
+        uid=uid,
+        fish_length=length if length else 0,
+        fish_weight=weight if weight else 0,
+        market_price=price if price else 0
+    )
+    db.session.add(new_log)
+    db.session.commit()
+
+    # 3) 이미지 테이블에 추가 (base64_image가 있으면 파일 저장 + DB insert)
+    image_url = ""
+    if base64_image:
+        image_url = save_image_and_insert_table(
+            base64_image=base64_image,
+            filename=filename,
+            entity_type='fishing_log',
+            entity_id=new_log.log_id
+        )
+
+    return jsonify({
+        "message": "fishing_log created",
+        "log_id": new_log.log_id,
+        "image_url": image_url
+    }), 200
+
+
+def get_or_create_region(region_name, detailed_address):
+    """region 테이블에서 동일 레코드가 있으면 반환, 없으면 생성 후 반환."""
+    region = Region.query.filter_by(
+        region_name=region_name,
+        detailed_address=detailed_address
+    ).first()
+
+    if not region:
+        region = Region(
+            region_name=region_name,
+            detailed_address=detailed_address
+        )
+        db.session.add(region)
+        db.session.commit()
+    return region.region_id
+
+
+def save_image_and_insert_table(base64_image, filename, entity_type, entity_id):
+    """
+    base64 디코딩하여 서버에 이미지 파일 저장,
+    images 테이블에 레코드 추가 후 image_url 반환
+    """
+    # 저장 디렉토리: 현재 작업 디렉토리의 "static/images" 폴더
+    save_dir = os.path.join('.', 'static', 'images')
+    os.makedirs(save_dir, exist_ok=True)
+
+    # 파일 경로
+    save_path = os.path.join(save_dir, filename)
+
+
+    # base64 디코딩
+    with open(save_path, 'wb') as f:
+        f.write(base64.b64decode(base64_image))
+
+    # 접근 URL (서버 주소 + /static/fishing_log_images/filename)
+    image_url = f'/static/images/{filename}'
+
+    # images 테이블 insert
+    new_image = Images(
+        image_url=image_url,
+        entity_type=entity_type,
+        entity_id=entity_id
+    )
+    db.session.add(new_image)
+    db.session.commit()
+
+    return image_url
+
+
+@app.route('/api/fishing_logs', methods=['GET'])
+def get_fishing_logs():
+    uid = request.args.get('uid', type=int)
+    fish_id = request.args.get('fish_id', type=int)
+    if uid is None or fish_id is None:
+        return jsonify({"error": "uid와 fish_id 파라미터가 필요합니다."}), 400
+
+    logs = FishingLog.query.filter_by(uid=uid, fish_id=fish_id).all()
+    results = []
+    for log in logs:
+        # Region 테이블에서 해당 region_id로 지역 정보를 조회
+        region = Region.query.get(log.region_id)
+        results.append({
+            "region_name": region.region_name if region else "",
+            "detailed_address": region.detailed_address if region else "",
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+            "length": str(log.fish_length) if log.fish_length is not None else "0",
+            "weight": str(log.fish_weight) if log.fish_weight is not None else "0",
+            "price": str(log.market_price) if log.market_price is not None else "0",
+            # FishingLog 객체에 image_url 컬럼이 없다면, 이 부분은 조인이 필요합니다.
+            "image_url": log.image_url if hasattr(log, 'image_url') else ""
+        })
+    return jsonify(results)
+
 
 # ----------------------------
 # 애플리케이션 시작
