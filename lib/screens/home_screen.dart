@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_application_with_figma/screens/community_screen.dart';
 import 'package:flutter_application_with_figma/screens/select_photo_screen.dart';
 import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
 
 // 🔧 HomeScreen을 StatefulWidget으로 변경하여 상태 관리 가능하도록 수정
@@ -18,11 +19,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String serverStatus = "Flask 연결 확인 중..."; // 🔧 서버 연결 상태 저장 변수 추가
+  bool isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    checkServerConnection(); // 🔧 앱 시작 시 Flask 서버 연결 확인
+    checkServerConnection();
+    checkSession();
   }
 
   // 🔧 Flask 서버의 연결 상태를 확인하는 함수
@@ -43,8 +46,26 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       setState(() {
-        serverStatus = "연결 오류~~~~~~~~~~~~~~~~~~~~~~~~~: $e"; // 🔧 예외 발생 시 오류 메시지 표시
+        serverStatus =
+            "연결 오류~~~~~~~~~~~~~~~~~~~~~~~~~: $e"; // 🔧 예외 발생 시 오류 메시지 표시
       });
+    }
+  }
+
+  Future<void> checkSession() async {
+    try {
+      final response =
+          await http.get(Uri.parse('http://127.0.0.1:5000/api/session'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['loggedIn'] == true) {
+          setState(() {
+            isLoggedIn = true;
+          });
+        }
+      }
+    } catch (e) {
+      print("세션 확인 오류: $e");
     }
   }
 
@@ -351,13 +372,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context) => const MarketPriceScreen()),
             );
           } else if (index == 4) {
-             // ✅ 마이페이지 탭 클릭 시
-             Navigator.push(
+            // ✅ 마이페이지 탭 클릭 시
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const MyPageScreen()),
             );
+          } else if (index == 4) {
+            if (isLoggedIn) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const MyPageLoginScreen()),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
           }
         },
+
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
           BottomNavigationBarItem(
