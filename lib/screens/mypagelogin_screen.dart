@@ -3,9 +3,28 @@ import 'home_screen.dart';
 import 'community_screen.dart';
 import 'market_price_screen.dart';
 import 'mypage_screen.dart'; // 로그아웃 시 이동할 기본 마이페이지 화면
+import 'package:http/http.dart' as http;
 
 class MyPageLoginScreen extends StatelessWidget {
   const MyPageLoginScreen({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:5000/api/logout'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MyPageScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("로그아웃 실패")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +46,21 @@ class MyPageLoginScreen extends StatelessWidget {
             Image.asset('assets/icons/fish_icon1.png', height: 24),
           ],
         ),
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.logout, color: Colors.black),
+        //     onPressed: () {
+        //       Navigator.pushReplacement(
+        //         context,
+        //         MaterialPageRoute(builder: (context) => const MyPageScreen()),
+        //       );
+        //     }, // 로그아웃 시 기본 마이페이지 화면으로 이동
+        //   ),
+        // ],
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const MyPageScreen()),
-              );
-            }, // 로그아웃 시 기본 마이페이지 화면으로 이동
+            onPressed: () => _logout(context),
           ),
         ],
       ),
@@ -88,6 +113,13 @@ class MyPageLoginScreen extends StatelessWidget {
               context,
               MaterialPageRoute(
                   builder: (context) => const MarketPriceScreen()),
+            );
+          } else if (index == 4) {
+            // 현재 로그인 상태 유지: 마이페이지 로그인 상태 유지
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const MyPageLoginScreen()),
             );
           }
         },
