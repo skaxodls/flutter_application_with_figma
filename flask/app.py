@@ -4,6 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.mysql import DECIMAL, ENUM
 from sqlalchemy import func
 from flask import send_from_directory
+from werkzeug.security import generate_password_hash
+from sqlalchemy.exc import IntegrityError
+from flask import request, jsonify
+from werkzeug.security import check_password_hash
 import os
 import base64
 
@@ -677,7 +681,128 @@ def save_image_and_insert_table(base64_image, filename, entity_type, entity_id):
 
     return image_url
 
+@app.route('/kakao_postcode.html')
+def serve_html():
+    return send_from_directory('templates', 'kakao_postcode.html')
 
+# ----------------------------
+# 회원가입 API
+# ----------------------------
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    user_id = data.get('id')
+    password = data.get('password')
+    username = data.get('username')
+    region_name = data.get('location')
+    
+    if not user_id or not password or not username or not region_name:
+        return jsonify({"error": "모든 필드를 입력해주세요."}), 400
+
+    existing_user = Members.query.filter_by(user_id=user_id).first()
+    if existing_user:
+        return jsonify({"error": "이미 존재하는 아이디입니다."}), 400
+
+    region = Region.query.filter_by(region_name=region_name).first()
+    if not region:
+        region = Region(region_name=region_name, detailed_address=region_name)
+        db.session.add(region)
+        db.session.commit()
+
+    hashed_pw = generate_password_hash(password)
+    new_member = Members(
+        user_id=user_id,
+        password_hash=hashed_pw,
+        username=username,
+        region_id=region.region_id
+    )
+    db.session.add(new_member)
+    db.session.commit()
+
+    return jsonify({"message": "회원가입 성공"}), 200
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+
+    user_id = data.get('id')
+    password = data.get('password')
+
+    if not user_id or not password:
+        return jsonify({"error": "아이디와 비밀번호를 모두 입력해주세요."}), 400
+
+    user = Members.query.filter_by(user_id=user_id).first()
+
+    if user is None:
+        return jsonify({"error": "존재하지 않는 사용자입니다."}), 401
+
+    # 🔐 비밀번호 확인
+    if not check_password_hash(user.password_hash, password):
+        return jsonify({"error": "비밀번호가 올바르지 않습니다."}), 401
+
+    # ✅ 로그인 성공
+    session['uid'] = user.uid  # 세션 저장 (선택 사항)
+    return jsonify({
+        "message": "로그인 성공",
+        "uid": user.uid,
+        "username": user.username,
+        "region_id": user.region_id
+    }), 200
+
+@app.route('/api/me', methods=['GET'])
+def get_me():
+    uid = session.get('uid')
+    if not uid:
+        return jsonify({"error": "로그인되지 않았습니다."}), 401
+
+    user = Members.query.get(uid)
+    if not user:
+        return jsonify({"error": "사용자를 찾을 수 없습니다."}), 404
+
+    return jsonify(user.to_json()), 200
+
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"message": "로그아웃 완료"}), 200
+
+
+@app.route('/api/check_session', methods=['GET'])
+def check_session():
+    uid = session.get('uid')
+    if uid:
+        user = Members.query.get(uid)
+        return jsonify({
+            "logged_in": True,
+            "uid": uid,
+            "username": user.username,
+            "region_id": user.region_id
+        }), 200
+    return jsonify({"logged_in": False}), 200
+
+
+@app.route('/api/user_profile', methods=['GET'])
+def get_user_profile():
+    uid = session.get('uid')
+    if not uid:
+        return jsonify({"error": "로그인되지 않음"}), 401
+
+    user = Members.query.get(uid)
+    region = Region.query.get(user.region_id)
+
+    return jsonify({
+        "user_id": user.user_id,
+        "username": user.username,
+        "region": region.region_name if region else "알 수 없음",
+        "uid": user.uid
+    }), 200
+
+
+@app.route('/api/session', methods=['GET'])
+def check_session_status():
+    uid = session.get('uid')
+    return jsonify({"loggedIn": bool(uid)})
 
 
 # ----------------------------
