@@ -39,7 +39,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     _fetchFishingLogs(); // 서버에서 낚시 로그 불러오기
   }
 
-  // 서버에서 낚시 로그 데이터를 가져오는 함수
+// 서버에서 낚시 로그 데이터를 가져오는 함수
   Future<void> _fetchFishingLogs() async {
     final url =
         "http://127.0.0.1:5000/api/fishing_logs?uid=1&fish_id=${widget.fishNumber}";
@@ -49,9 +49,12 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
 
       if (response.statusCode == 200) {
         List<dynamic> logs = jsonDecode(response.body);
+        print("🟢 서버 응답 데이터: $logs"); // 🔹 전체 데이터 터미널 출력
+
         setState(() {
           _fishingLogs.clear();
           for (var log in logs) {
+            print("🟡 개별 로그 데이터: $log"); // 🔹 각 로그 데이터 개별 출력
             _fishingLogs.add({
               "location": log["region_name"],
               "date": log["created_at"], // 생성 날짜
@@ -63,7 +66,8 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
           }
         });
       } else {
-        print("❌ 낚시 로그 불러오기 실패: ${response.body}");
+        print("❌ 낚시 로그 불러오기 실패: ${response.statusCode}");
+        print("❌ 오류 메시지: ${response.body}");
       }
     } catch (e) {
       print("❌ 오류 발생: $e");
@@ -73,7 +77,8 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
   // 예상 싯가 합계 계산 함수
   int _calculateTotalEarnings() {
     return _fishingLogs.fold(0, (sum, log) {
-      return sum + (int.tryParse(log["price"]?.toString() ?? "0") ?? 0);
+      return sum +
+          ((double.tryParse(log["price"]?.toString() ?? "0")?.toInt()) ?? 0);
     });
   }
 
@@ -174,30 +179,25 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
       }
     }
 
-    Future<void> _fetchFishingLogs() async {
-      final url =
-          "http://127.0.0.1:5000/api/fishing_logs?uid=1&fish_id=${widget.fishNumber}";
+    // 1. 잡은 물고기 추가 함수
+    Future<void> _insertCaughtFish(int uid, int fishId) async {
+      final url = "http://127.0.0.1:5000/api/caught_fish"; // 서버에 추가할 엔드포인트
+      final body = jsonEncode({
+        "uid": uid,
+        "fish_id": fishId,
+        "registered": true // 등록 여부 (예: true/false)
+      });
 
       try {
-        final response = await http.get(Uri.parse(url));
-
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {"Content-Type": "application/json"},
+          body: body,
+        );
         if (response.statusCode == 200) {
-          List<dynamic> logs = jsonDecode(response.body);
-          setState(() {
-            _fishingLogs.clear();
-            for (var log in logs) {
-              _fishingLogs.add({
-                "location": log["region_name"],
-                "date": log["created_at"], // 생성 날짜
-                "length": log["length"],
-                "weight": log["weight"],
-                "price": log["price"],
-                "image": log["image_url"], // 서버에서 반환하는 이미지 경로
-              });
-            }
-          });
+          print("✅ 잡은 물고기 테이블에 추가 성공!");
         } else {
-          print("❌ 낚시 로그 불러오기 실패: ${response.body}");
+          print("❌ 잡은 물고기 테이블 추가 실패: ${response.body}");
         }
       } catch (e) {
         print("❌ 오류 발생: $e");
@@ -291,7 +291,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () async {
-                    // 서버에 낚시 로그 추가 (멀티파트 전송)
+                    // 2-1) 낚시 로그 추가
                     await _insertFishingLogToDB(
                       location: locationController.text,
                       length: lengthController.text,
@@ -299,8 +299,12 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                       price: priceController.text,
                       imagePath: selectedImagePath,
                     );
-                    Navigator.pop(context); // 다이얼로그 닫기
-                    // 전체 화면 새로고침: FishDetailScreen을 다시 로드
+
+                    // 2-2) 잡은 물고기 등록 (uid=1, fish_id=widget.fishNumber)
+                    await _insertCaughtFish(1, widget.fishNumber);
+
+                    // 2-3) 다이얼로그 닫기 및 화면 새로고침
+                    Navigator.pop(context);
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -508,8 +512,8 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
             const SizedBox(height: 16),
             // 🔹 싯가가 섹션
             _InfoCard(
-              title: "시가",
-              content: "시가 정보",
+              title: "싯가",
+              content: "싯가 정보",
             ),
             const SizedBox(height: 4),
             // 🔹 계통분류 섹션
@@ -570,7 +574,9 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                               log["image"] != null &&
                                       log["image"].toString().isNotEmpty
                                   ? Image.network(
-                                      "http://127.0.0.1:5000/static/images/${log["image"]}",
+                                      log["image"].startsWith("/static/images/")
+                                          ? "http://127.0.0.1:5000${log["image"]}" // 절대 경로일 경우 그대로 사용
+                                          : "http://127.0.0.1:5000/static/images/${log["image"]}", // 파일명만 있을 경우 경로 추가
                                       width: 80,
                                       height: 60,
                                       fit: BoxFit.cover,
@@ -581,6 +587,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                                       color: Colors.grey[300],
                                       child: const Icon(Icons.image, size: 40),
                                     ),
+
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(

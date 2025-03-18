@@ -255,6 +255,27 @@ class _FishCard extends StatelessWidget {
     required this.taxonomy,
   }) : super(key: key);
 
+  Future<bool> _isFishRegistered() async {
+    final response = await http.get(
+        Uri.parse("http://127.0.0.1:5000/api/caught_fish?fish_id=$fishId"));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List<dynamic>;
+      // 리스트가 비어있지 않으면 등록된 것으로 간주
+      return data.isNotEmpty;
+    } else {
+      return false;
+    }
+  }
+
+  // 물고기 등록 시 사용할 이미지 매핑 (DB에 저장된 경우 이미 /static/images/ 포함)
+  final Map<int, String> fishImageMapping = const {
+    1: '/static/images/neobchinongeo.jpg',
+    2: '/static/images/nongeo.jpg',
+    3: '/static/images/jeomnongeo.jpg',
+    4: '/static/images/gamseongdom.jpg',
+    5: '/static/images/saenunchi.jpg',
+  };
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -267,7 +288,7 @@ class _FishCard extends StatelessWidget {
               fishNumber: fishId,
               fishName: fishName,
               scientificName: scientificName,
-              morphologicalInfo: morphologicalInfo, // 전달받은 형태생태정보 사용
+              morphologicalInfo: morphologicalInfo,
               taxonomy: taxonomy,
             ),
           ),
@@ -307,8 +328,54 @@ class _FishCard extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 10),
-                  Image.asset('assets/icons/fish_icon7.png', height: 70),
+                  // FutureBuilder를 통해 잡은 물고기 등록 여부에 따라 이미지를 선택
+                  FutureBuilder<bool>(
+                    future: _isFishRegistered(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          height: 70,
+                          width: 70,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      } else if (snapshot.hasError) {
+                        // 오류가 발생하면 기본 이미지를 사용
+                        return Image.asset(
+                          'assets/icons/fish_icon7.png',
+                          height: 70,
+                        );
+                      } else {
+                        final isRegistered = snapshot.data ?? false;
+                        if (isRegistered) {
+                          // 등록된 경우 매핑된 이미지 URL 사용
+                          final mappedImage = fishImageMapping[fishId];
+                          if (mappedImage != null) {
+                            return Image.network(
+                              "http://127.0.0.1:5000" + mappedImage,
+                              height: 70,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/icons/fish_icon7.png',
+                                  height: 70,
+                                );
+                              },
+                            );
+                          } else {
+                            return Image.asset(
+                              'assets/icons/fish_icon7.png',
+                              height: 70,
+                            );
+                          }
+                        } else {
+                          // 등록되지 않은 경우 기존 이미지 에셋 사용
+                          return Image.asset(
+                            'assets/icons/fish_icon7.png',
+                            height: 70,
+                          );
+                        }
+                      }
+                    },
+                  ),
                   const SizedBox(height: 6),
                   const Text(
                     "싯가 손익",

@@ -7,6 +7,8 @@ from flask import send_from_directory
 import os
 import base64
 
+from model import detect_and_classify
+
 app = Flask(__name__)
 app.secret_key = "1234"  # 세션 암호화를 위한 비밀키 설정
 CORS(app)
@@ -300,11 +302,15 @@ class CaughtFish(db.Model):
         }
 
 
+
 #로그인했다고 가정
 @app.before_request
 def simulate_login():
     # 모든 요청 전에 세션에 uid=1 (user1) 저장하여 로그인 상태로 가정
     session['uid'] = 1
+
+
+
 
 #도감 페이지에 필요한 API 엔드포인트
 
@@ -332,10 +338,7 @@ def get_fishes():
     return jsonify(results)
 
 
-#이미지 불러오는 API 엔드포인트
-@app.route('/images/<filename>')
-def get_image(filename):
-    return send_from_directory('static/images', filename)
+
 
 @app.route('/api/caught_fish', methods=['GET'])
 def get_caught_fish():
@@ -348,6 +351,21 @@ def get_caught_fish():
     caught_fish_list = CaughtFish.query.filter_by(uid=uid, fish_id=fish_id).all()
     return jsonify([cf.to_json() for cf in caught_fish_list])
 
+
+
+@app.route('/api/caught_fish', methods=['POST'])
+def add_caught_fish():
+    data = request.get_json()
+    uid = data.get('uid')
+    fish_id = data.get('fish_id')
+    if not uid or not fish_id:
+        return jsonify({"error": "uid와 fish_id가 필요합니다."}), 400
+
+    caught_fish = CaughtFish(uid=uid, fish_id=fish_id)
+    db.session.add(caught_fish)
+    db.session.commit()
+
+    return jsonify({"message": "잡은 물고기 등록 완료"}), 200
 
 
 @app.route('/api/fish_regions', methods=['GET'])
@@ -364,7 +382,9 @@ def get_fish_regions():
     results = []
     for fr in fish_regions:
         # fr.region_id로 Region 정보를 가져옴
-        region = Region.query.get(fr.region_id)
+        with db.session() as session:
+            region = session.get(Region, fr.region_id)  # ✅ SQLAlchemy 2.0 호환 방식
+
         if region:
             # region 정보(이름, 상세주소) + fish_region_id 등 필요한 정보 결합
             region_data = {
@@ -448,6 +468,167 @@ def create_fishing_log():
     }), 200
 
 
+# ----------------------------
+# 물고기 ID에 따른 기본 이미지 매핑
+# ----------------------------
+DEFAULT_FISH_IMAGES = {
+    1: '/static/images/neobchinongeo.jpg',
+    2: '/static/images/nongeo.jpg',
+    3: '/static/images/jeomnongeo.jpg',
+    4: '/static/images/gamseongdom.jpg',
+    5: '/static/images/saenunchi.jpg'
+}
+
+
+@app.route('/api/fishing_logs', methods=['GET'])
+def get_fishing_logs():
+    uid = request.args.get('uid', type=int)
+    fish_id = request.args.get('fish_id', type=int)
+    
+    if uid is None or fish_id is None:
+        return jsonify({"error": "uid와 fish_id 파라미터가 필요합니다."}), 400
+
+    logs = FishingLog.query.filter_by(uid=uid, fish_id=fish_id).all()
+    results = []
+    
+    for log in logs:
+        region = Region.query.get(log.region_id)
+
+        # FishingLog의 기본 키 확인
+        fishing_log_id = getattr(log, 'id', None) or getattr(log, 'log_id', None)
+        if fishing_log_id is None:
+            return jsonify({"error": "FishingLog 모델에서 id 또는 log_id를 찾을 수 없습니다."}), 500
+
+        # 낚시 로그 ID에 해당하는 이미지 중 첫 번째 이미지만 조회
+        image_obj = Images.query.filter_by(entity_type='fishing_log', entity_id=fishing_log_id).first()
+        
+        if image_obj:
+            # 낚시 로그에 이미지가 있는 경우 → 첫 번째 이미지의 경로
+            image_url = image_obj.image_url
+        else:
+            # 낚시 로그에 이미지가 없으면, 물고기 ID의 기본 이미지 제공
+            default_image_filename = DEFAULT_FISH_IMAGES.get(fish_id, "")
+            image_url = default_image_filename if default_image_filename else ""
+
+        results.append({
+            "region_name": region.region_name if region else "",
+            "detailed_address": region.detailed_address if region else "",
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+            "length": str(log.fish_length) if log.fish_length is not None else "0",
+            "weight": str(log.fish_weight) if log.fish_weight is not None else "0",
+            "price": str(log.market_price) if log.market_price is not None else "0",
+            # ✅ 단일 이미지 URL 필드
+            "image_url": image_url  
+        })
+
+    return jsonify(results)
+
+
+# ✅ 영어 이름과 fish_id 매핑
+fish_id_mapping = {
+    "gamseongdom": 1,
+    "jeomnongeo": 2,
+    "neobchinongeo": 3,
+    "nongeo": 4,
+    "saenunchi": 5
+}
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+
+    image = request.files['image']
+    result = detect_and_classify(image)  # ✅ YOLO + Hybrid 모델을 사용한 물고기 종 예측
+
+    if "predicted_class" not in result:
+        return jsonify({"error": "Prediction failed"}), 500
+
+    # ✅ 예측된 영어 물고기 종 이름
+    english_fish_name = result['predicted_class']
+    confidence_score = result["confidence"]
+
+    print(f"예측 결과: {english_fish_name} ({confidence_score:.2f}%)")  # ✅ 터미널에 출력
+
+    # ✅ fish_id 매핑
+    fish_id = fish_id_mapping.get(english_fish_name, None)
+
+    if fish_id is None:
+        print("매핑된 fish_id 없음")
+        return jsonify({"error": "Unknown fish species"}), 500
+
+    print(f"매핑된 fish_id: {fish_id}")  # ✅ 터미널에 출력
+
+    # ✅ 데이터베이스에서 fish_id로 물고기 추가 정보 조회
+    fish = Fish.query.filter_by(fish_id=fish_id).first()
+    print(f"데이터베이스 조회 결과: {fish}")  # ✅ 터미널에 출력
+
+    if fish:
+        fish_info = {
+            "scientific_name": fish.scientific_name if hasattr(fish, "scientific_name") else "알 수 없음",
+            "morphological_info": fish.morphological_info if hasattr(fish, "morphological_info") else "정보 없음",
+            "taxonomy": fish.taxonomy if hasattr(fish, "taxonomy") else "정보 없음"
+        }
+        fish_name = fish.fish_name if hasattr(fish, "fish_name") else "알 수 없음"
+    else:
+        fish_info = {
+            "scientific_name": "알 수 없음",
+            "morphological_info": "정보 없음",
+            "taxonomy": "정보 없음"
+        }
+        fish_name = "알 수 없음"
+
+    print(fish_info)  # ✅ 터미널에 출력
+
+    # ✅ 최종 응답 데이터 구성
+    response = {
+        "fish_id": fish_id,
+        "predicted_class": fish_name,
+        "confidence": confidence_score,
+        "scientific_name": fish_info["scientific_name"],
+        "morphological_info": fish_info["morphological_info"],
+        "taxonomy": fish_info["taxonomy"],
+    }
+
+    return jsonify(response)
+
+
+
+
+
+
+
+
+#---------------------------
+#함수
+#---------------------------
+
+
+
+def get_images_for_fishing_log(log_id, fish_id):
+    """
+    낚시 로그 ID를 기반으로 이미지를 가져오고, 없으면 해당 물고기 ID의 기본 이미지를 반환한다.
+    """
+    images = Images.query.filter_by(entity_type='fishing_log', entity_id=log_id).all()
+    
+    if images:  
+        # 낚시 로그에 이미지가 있는 경우
+        return [
+            {
+                "image_url": image.image_url,
+                "image_download_url": f"/api/images/{image.image_url}"
+            } for image in images
+        ]
+    
+    # 낚시 로그에 이미지가 없으면, 물고기 ID의 기본 이미지 제공
+    default_image_url = DEFAULT_FISH_IMAGES.get(fish_id, "")
+    return [
+        {
+            "image_url": default_image_url,
+            "image_download_url": f"/api/images/{os.path.basename(default_image_url)}"
+        }
+    ] if default_image_url else []
+
 def get_or_create_region(region_name, detailed_address):
     """region 테이블에서 동일 레코드가 있으면 반환, 없으면 생성 후 반환."""
     region = Region.query.filter_by(
@@ -497,29 +678,6 @@ def save_image_and_insert_table(base64_image, filename, entity_type, entity_id):
     return image_url
 
 
-@app.route('/api/fishing_logs', methods=['GET'])
-def get_fishing_logs():
-    uid = request.args.get('uid', type=int)
-    fish_id = request.args.get('fish_id', type=int)
-    if uid is None or fish_id is None:
-        return jsonify({"error": "uid와 fish_id 파라미터가 필요합니다."}), 400
-
-    logs = FishingLog.query.filter_by(uid=uid, fish_id=fish_id).all()
-    results = []
-    for log in logs:
-        # Region 테이블에서 해당 region_id로 지역 정보를 조회
-        region = Region.query.get(log.region_id)
-        results.append({
-            "region_name": region.region_name if region else "",
-            "detailed_address": region.detailed_address if region else "",
-            "created_at": log.created_at.isoformat() if log.created_at else None,
-            "length": str(log.fish_length) if log.fish_length is not None else "0",
-            "weight": str(log.fish_weight) if log.fish_weight is not None else "0",
-            "price": str(log.market_price) if log.market_price is not None else "0",
-            # FishingLog 객체에 image_url 컬럼이 없다면, 이 부분은 조인이 필요합니다.
-            "image_url": log.image_url if hasattr(log, 'image_url') else ""
-        })
-    return jsonify(results)
 
 
 # ----------------------------

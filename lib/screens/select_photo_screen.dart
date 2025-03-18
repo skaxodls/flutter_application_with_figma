@@ -46,7 +46,7 @@ class _SelectPhotoScreenState extends State<SelectPhotoScreen> {
         context,
         MaterialPageRoute(
             builder: (context) => LoadingScreen(
-                  selectedImage: _selectedImages.first,
+                  selectedImage: _selectedImage!,
                 )),
       );
     }
