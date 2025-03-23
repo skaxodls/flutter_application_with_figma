@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'dart:io';
 
 import 'package:intl/intl.dart'; // 날짜 선택을 위한 패키지
@@ -8,6 +8,8 @@ import 'package:intl/intl.dart'; // 날짜 선택을 위한 패키지
 import 'package:flutter_application_with_figma/screens/kakao_map_screen.dart'; // 카카오 지도 다이얼로그 화면
 
 import 'package:image_picker/image_picker.dart'; // 이미지 선택을 위한 패키지
+
+import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
 
 class FishDetailScreen extends StatefulWidget {
   final int fishNumber;
@@ -41,36 +43,35 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
 
 // 서버에서 낚시 로그 데이터를 가져오는 함수
   Future<void> _fetchFishingLogs() async {
-    final url =
-        "http://127.0.0.1:5000/api/fishing_logs?uid=1&fish_id=${widget.fishNumber}";
+    final url = "/api/fishing_logs?fish_id=${widget.fishNumber}"; // ✅ uid 제거
 
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await dio.get(url); // ✅ Dio 사용
 
       if (response.statusCode == 200) {
-        List<dynamic> logs = jsonDecode(response.body);
-        print("🟢 서버 응답 데이터: $logs"); // 🔹 전체 데이터 터미널 출력
+        final List<dynamic> logs = response.data;
+        print("🟢 서버 응답 데이터: $logs");
 
         setState(() {
           _fishingLogs.clear();
           for (var log in logs) {
-            print("🟡 개별 로그 데이터: $log"); // 🔹 각 로그 데이터 개별 출력
+            print("🟡 개별 로그 데이터: $log");
             _fishingLogs.add({
               "location": log["region_name"],
-              "date": log["created_at"], // 생성 날짜
+              "date": log["created_at"],
               "length": log["length"],
               "weight": log["weight"],
               "price": log["price"],
-              "image": log["image_url"], // 서버에서 반환하는 이미지 경로
+              "image": log["image_url"],
             });
           }
         });
       } else {
         print("❌ 낚시 로그 불러오기 실패: ${response.statusCode}");
-        print("❌ 오류 메시지: ${response.body}");
+        print("❌ 오류 메시지: ${response.data}");
       }
     } catch (e) {
-      print("❌ 오류 발생: $e");
+      print("❌ Dio 오류 발생: $e");
     }
   }
 
@@ -138,7 +139,6 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
       required String price,
       required String? imagePath,
     }) async {
-      final url = "http://127.0.0.1:5000/api/fishing_logs"; // Flask 서버 API
       String? base64Image;
       String filename = "fishing_image.jpg";
       if (imagePath != null && imagePath.isNotEmpty) {
@@ -153,26 +153,24 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
 
       final Map<String, dynamic> requestData = {
         "fish_id": widget.fishNumber,
-        "uid": 1, // 로그인된 사용자 (예시로 1 사용)
-        "region_name": location,
-        "detailed_address": location, // 여기서는 같은 값을 사용
-        "length": length,
-        "weight": weight,
-        "price": price,
+        "region": location.isNotEmpty ? location : "미등록 (x)",
+        "length": length.isNotEmpty ? length : "0",
+        "weight": weight.isNotEmpty ? weight : "0",
+        "price": price.isNotEmpty ? price : "0",
         "base64_image": base64Image ?? "",
         "filename": filename,
       };
 
       try {
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode(requestData),
+        final response = await dio.post(
+          '/api/fishing_logs',
+          data: requestData, // JSON은 data: 로 전달
         );
+
         if (response.statusCode == 200) {
           print("✅ 낚시 로그 추가 성공!");
         } else {
-          print("❌ 낚시 로그 추가 실패: ${response.body}");
+          print("❌ 낚시 로그 추가 실패: ${response.data}");
         }
       } catch (e) {
         print("❌ 오류 발생: $e");
@@ -180,24 +178,20 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     }
 
     // 1. 잡은 물고기 추가 함수
-    Future<void> _insertCaughtFish(int uid, int fishId) async {
-      final url = "http://127.0.0.1:5000/api/caught_fish"; // 서버에 추가할 엔드포인트
-      final body = jsonEncode({
-        "uid": uid,
-        "fish_id": fishId,
-        "registered": true // 등록 여부 (예: true/false)
-      });
-
+    Future<void> _insertCaughtFish(int fishId) async {
       try {
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {"Content-Type": "application/json"},
-          body: body,
+        final response = await dio.post(
+          '/api/caught_fish',
+          data: {
+            "fish_id": fishId,
+            "registered": true,
+          },
         );
+
         if (response.statusCode == 200) {
           print("✅ 잡은 물고기 테이블에 추가 성공!");
         } else {
-          print("❌ 잡은 물고기 테이블 추가 실패: ${response.body}");
+          print("❌ 잡은 물고기 테이블 추가 실패: ${response.data}");
         }
       } catch (e) {
         print("❌ 오류 발생: $e");
@@ -301,7 +295,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                     );
 
                     // 2-2) 잡은 물고기 등록 (uid=1, fish_id=widget.fishNumber)
-                    await _insertCaughtFish(1, widget.fishNumber);
+                    await _insertCaughtFish(widget.fishNumber);
 
                     // 2-3) 다이얼로그 닫기 및 화면 새로고침
                     Navigator.pop(context);
@@ -334,27 +328,41 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     }
   }
 
-  // 현재 로그인한 사용자가 잡은 물고기가 등록되었는지 확인하는 API 호출
+  /// 현재 로그인한 사용자가 잡은 물고기를 등록했는지 확인
   Future<bool> isFishRegistered() async {
-    final response = await http.get(Uri.parse(
-        "http://127.0.0.1:5000/api/caught_fish?uid=1&fish_id=${widget.fishNumber}"));
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as List<dynamic>;
-      return data.isNotEmpty;
-    } else {
-      return false;
+    try {
+      final response = await dio.get(
+        "/api/caught_fish",
+        queryParameters: {"fish_id": widget.fishNumber},
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as List<dynamic>;
+        return data.isNotEmpty;
+      }
+    } catch (e) {
+      print("❌ 등록 확인 실패: $e");
     }
+
+    return false;
   }
 
-  // 특정 물고기의 출몰지역 정보를 가져오는 API 호출
+  /// 특정 물고기의 출몰지역 정보를 가져오기
   Future<List<dynamic>> fetchFishRegions() async {
-    final response = await http.get(Uri.parse(
-        "http://127.0.0.1:5000/api/fish_regions?fish_id=${widget.fishNumber}"));
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
-    } else {
-      throw Exception("낚시 포인트 정보를 불러오지 못했습니다.");
+    try {
+      final response = await dio.get(
+        "/api/fish_regions",
+        queryParameters: {"fish_id": widget.fishNumber},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data as List<dynamic>;
+      }
+    } catch (e) {
+      print("❌ 출몰지역 정보 로드 실패: $e");
     }
+
+    return []; // 에러 발생 시 빈 리스트 반환
   }
 
   // 지역 정보를 하나의 문자열로 결합 (지역명, 상세주소)

@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'fish_detail_screen.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart';
 
 class PictorialBookScreen extends StatefulWidget {
   const PictorialBookScreen({Key? key}) : super(key: key);
@@ -22,10 +23,9 @@ class _PictorialBookScreenState extends State<PictorialBookScreen> {
 
   // API 엔드포인트를 호출하여 데이터를 가져옴 (URL은 실제 서버 주소로 수정)
   Future<List<dynamic>> fetchFishData() async {
-    final response =
-        await http.get(Uri.parse('http://127.0.0.1:5000/api/fishes'));
+    final response = await dio.get('/api/fishes');
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
+      return response.data as List<dynamic>;
     } else {
       throw Exception('데이터 로드 실패');
     }
@@ -256,11 +256,9 @@ class _FishCard extends StatelessWidget {
   }) : super(key: key);
 
   Future<bool> _isFishRegistered() async {
-    final response = await http.get(
-        Uri.parse("http://127.0.0.1:5000/api/caught_fish?fish_id=$fishId"));
+    final response = await dio.get('/api/caught_fish?fish_id=$fishId');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as List<dynamic>;
-      // 리스트가 비어있지 않으면 등록된 것으로 간주
+      final data = response.data as List<dynamic>;
       return data.isNotEmpty;
     } else {
       return false;

@@ -96,9 +96,5 @@ def detect_and_classify(image):
     print(f"\n🎯 **분류 결과** 🎯")
     print(f"🔹 예측된 물고기 종: {predicted_class}")
     print(f"🔹 신뢰도(Confidence): {confidence_score:.2f}%\n")
-    # app.logger.info("\n🎯 **분류 결과** 🎯")
-    # app.logger.info(f"🔹 예측된 물고기 종: {predicted_class}")
-    # app.logger.info(f"🔹 신뢰도(Confidence): {confidence_score:.2f}%\n")
-
 
     return {"predicted_class": predicted_class, "confidence": confidence_score}

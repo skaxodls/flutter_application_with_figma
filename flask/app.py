@@ -325,13 +325,7 @@ class CaughtFish(db.Model):
 
 
 
-@app.route('/api/session', methods=['GET'])
-def get_session_info():
-    # 현재 세션 데이터를 터미널에 출력
-    print("현재 세션 정보:", dict(session))  
 
-    # 응답을 반환하지 않고, 클라이언트에게 204 No Content 응답 반환
-    return '', 204
 
 
 #도감 페이지에 필요한 API 엔드포인트
@@ -378,7 +372,7 @@ def get_caught_fish():
 @app.route('/api/caught_fish', methods=['POST'])
 def add_caught_fish():
     data = request.get_json()
-    uid = data.get('uid')
+    uid = session.get('uid')
     fish_id = data.get('fish_id')
     if not uid or not fish_id:
         return jsonify({"error": "uid와 fish_id가 필요합니다."}), 400
@@ -436,9 +430,7 @@ def create_fishing_log():
     JSON 예시:
     {
       "fish_id": 1,
-      "uid": 1,
-      "region_name": "서울특별시",
-      "detailed_address": "중구 청파로 123",
+      "region_name": "용지못 (경남 창원시 성산구 용지동 551-1)",
       "length": "30",
       "weight": "1.2",
       "price": "5000",
@@ -449,18 +441,29 @@ def create_fishing_log():
     data = request.json
 
     fish_id = data.get('fish_id')
-    uid = data.get('uid')
-    region_name = data.get('region_name')
-    detailed_address = data.get('detailed_address')
+    uid = session.get('uid')
+    region_full = data.get('region')  # 예: "용지못 (경남 창원시 성산구 용지동 551-1)"
     length = data.get('length')
     weight = data.get('weight')
     price = data.get('price')
     base64_image = data.get('base64_image')
     filename = data.get('filename') or 'fishing_image.jpg'
 
+    # ✅ region_full을 이름과 주소로 분리
+    if '(' in region_full and ')' in region_full:
+        try:
+            region_name = region_full.split('(')[0].strip()
+            detailed_address = region_full.split('(')[1].replace(')', '').strip()
+        except Exception:
+            region_name = region_full
+            detailed_address = ''
+    else:
+        # 괄호가 없으면 기본값 설정
+        region_name = region_full.strip()
+        detailed_address = ''
+
     # 1) region_id 획득
     region_id = get_or_create_region(region_name, detailed_address)
-
     # 2) fishing_log insert
     new_log = FishingLog(
         region_id=region_id,
@@ -504,44 +507,40 @@ DEFAULT_FISH_IMAGES = {
 
 @app.route('/api/fishing_logs', methods=['GET'])
 def get_fishing_logs():
-    uid = request.args.get('uid', type=int)
+    uid = session.get('uid')
     fish_id = request.args.get('fish_id', type=int)
-    
+    print(f"uid: {uid}, fish_id: {fish_id}")
+    # ✅ 로그인하지 않았거나 파라미터가 없는 경우에도 빈 리스트로 처리
     if uid is None or fish_id is None:
-        return jsonify({"error": "uid와 fish_id 파라미터가 필요합니다."}), 400
+        return jsonify([]), 200
 
     logs = FishingLog.query.filter_by(uid=uid, fish_id=fish_id).all()
     results = []
-    
+
     for log in logs:
         region = Region.query.get(log.region_id)
 
-        # FishingLog의 기본 키 확인
         fishing_log_id = getattr(log, 'id', None) or getattr(log, 'log_id', None)
         if fishing_log_id is None:
-            return jsonify({"error": "FishingLog 모델에서 id 또는 log_id를 찾을 수 없습니다."}), 500
+            continue  # 에러 내지 않고 건너뛰기
 
-        # 낚시 로그 ID에 해당하는 이미지 중 첫 번째 이미지만 조회
         image_obj = Images.query.filter_by(entity_type='fishing_log', entity_id=fishing_log_id).first()
-        
-        if image_obj:
-            # 낚시 로그에 이미지가 있는 경우 → 첫 번째 이미지의 경로
-            image_url = image_obj.image_url
-        else:
-            # 낚시 로그에 이미지가 없으면, 물고기 ID의 기본 이미지 제공
-            default_image_filename = DEFAULT_FISH_IMAGES.get(fish_id, "")
-            image_url = default_image_filename if default_image_filename else ""
+        image_url = (
+            image_obj.image_url
+            if image_obj
+            else DEFAULT_FISH_IMAGES.get(fish_id, "")
+        )
 
         results.append({
             "region_name": region.region_name if region else "",
             "detailed_address": region.detailed_address if region else "",
             "created_at": log.created_at.isoformat() if log.created_at else None,
-            "length": str(log.fish_length) if log.fish_length is not None else "0",
-            "weight": str(log.fish_weight) if log.fish_weight is not None else "0",
-            "price": str(log.market_price) if log.market_price is not None else "0",
-            # ✅ 단일 이미지 URL 필드
-            "image_url": image_url  
+            "length": str(log.fish_length) if log.fish_length else "0",
+            "weight": str(log.fish_weight) if log.fish_weight else "0",
+            "price": str(log.market_price) if log.market_price else "0",
+            "image_url": image_url
         })
+    print(results)
 
     return jsonify(results)
 
