@@ -10,12 +10,30 @@ from flask import request, jsonify
 from werkzeug.security import check_password_hash
 import os
 import base64
+from flask_session import Session
+from datetime import timedelta
 
 from model import detect_and_classify
 
 app = Flask(__name__)
-app.secret_key = "1234"  # 세션 암호화를 위한 비밀키 설정
-CORS(app)
+
+# ✅ 세션 저장 방식: 'filesystem', 'sqlalchemy', 'redis' 중 선택 가능 (간단하게 filesystem 사용)
+app.config['SESSION_TYPE'] = 'filesystem'
+# ✅ 세션을 영속적으로 유지할지 여부 설정 (True로 하면 브라우저 꺼도 유지됨)
+app.config['SESSION_PERMANENT'] = True
+# ✅ 세션 유지 시간 (예: 1일간 유지)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
+# ✅ 세션 쿠키에 서명을 추가하여 보안 강화
+app.config['SESSION_USE_SIGNER'] = True
+# ✅ 파일 기반 세션을 사용할 경우 세션 저장 경로 지정
+app.config['SESSION_FILE_DIR'] = './flask_session_files'
+# ✅ 세션 암호화를 위한 키 설정 (중요!)
+app.secret_key = '1234'
+
+# ✅ Flask 앱에 Session 확장기능 적용
+Session(app)
+
+CORS(app, supports_credentials=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:0525@127.0.0.1/fishgo'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -307,13 +325,13 @@ class CaughtFish(db.Model):
 
 
 
-#로그인했다고 가정
-@app.before_request
-def simulate_login():
-    # 모든 요청 전에 세션에 uid=1 (user1) 저장하여 로그인 상태로 가정
-    session['uid'] = 1
+@app.route('/api/session', methods=['GET'])
+def get_session_info():
+    # 현재 세션 데이터를 터미널에 출력
+    print("현재 세션 정보:", dict(session))  
 
-
+    # 응답을 반환하지 않고, 클라이언트에게 204 No Content 응답 반환
+    return '', 204
 
 
 #도감 페이지에 필요한 API 엔드포인트
@@ -742,6 +760,11 @@ def login():
 
     # ✅ 로그인 성공
     session['uid'] = user.uid  # 세션 저장 (선택 사항)
+    
+    
+    # 🔹 현재 세션 정보 출력 (터미널 확인용)
+    print("🔹 현재 세션 정보:", dict(session))
+    
     return jsonify({
         "message": "로그인 성공",
         "uid": user.uid,

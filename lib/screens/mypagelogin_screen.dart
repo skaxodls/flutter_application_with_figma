@@ -3,25 +3,28 @@ import 'home_screen.dart';
 import 'community_screen.dart';
 import 'market_price_screen.dart';
 import 'mypage_screen.dart'; // 로그아웃 시 이동할 기본 마이페이지 화면
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
+import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
 
 class MyPageLoginScreen extends StatelessWidget {
   const MyPageLoginScreen({super.key});
-
   Future<void> _logout(BuildContext context) async {
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:5000/api/logout'),
-      headers: {'Content-Type': 'application/json'},
-    );
+    try {
+      final response = await dio.post('/api/logout'); // dio 사용
 
-    if (response.statusCode == 200) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MyPageScreen()),
-      );
-    } else {
+      if (response.statusCode == 200) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MyPageScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("로그아웃 실패")),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("로그아웃 실패")),
+        SnackBar(content: Text("오류 발생: $e")),
       );
     }
   }

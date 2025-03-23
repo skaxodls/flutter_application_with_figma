@@ -41,6 +41,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   lucide_icons: ^0.257.0
   image_picker: ^1.1.2
+  dio: ^5.8.0+1
+  dio_cookie_manager: ^3.2.0
+  cookie_jar: ^4.0.8
 
 
 dev_dependencies:

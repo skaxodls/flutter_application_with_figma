@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'package:flutter_application_with_figma/screens/signup_screen.dart';
 import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter_application_with_figma/dio_setup.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,19 +22,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _checkSession() async {
-    final url = Uri.parse('http://127.0.0.1:5000/api/check_session');
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['logged_in'] == true) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const MyPageLoginScreen(),
-            ),
-          );
-        }
+      final response = await dio.get('/api/check_session');
+      if (response.statusCode == 200 && response.data['logged_in'] == true) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MyPageLoginScreen(),
+          ),
+        );
       }
     } catch (e) {
       print('세션 확인 실패: $e');
@@ -53,16 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final url = Uri.parse('http://127.0.0.1:5000/api/login');
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'id': id,
-          'password': pw,
-        }),
-      );
+      final response = await dio.post('/api/login', data: {
+        'id': id,
+        'password': pw,
+      });
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -74,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("로그인 실패: ${response.body}")),
+          SnackBar(content: Text("로그인 실패: ${response.data['error']}")),
         );
       }
     } catch (e) {

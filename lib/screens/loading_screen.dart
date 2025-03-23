@@ -103,7 +103,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1) 첫 번째 줄: "모르겠어요" (단독 버튼)
+                  // "모르겠어요" 버튼 (이제 "맞아요"와 동일한 동작 수행)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromARGB(255, 122, 127, 131),
@@ -112,11 +112,11 @@ class _LoadingScreenState extends State<LoadingScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: _navigateToSelectImageScreen,
+                    onPressed: _navigateToDetailScreen, // ✅ "맞아요"와 동일하게 변경
                     child: const Text("모르겠어요"),
                   ),
                   const SizedBox(height: 8),
-                  // 2) 두 번째 줄: "맞아요"와 "아니에요" (가로로 배치)
+                  // "맞아요"와 "아니에요" 버튼 (기존과 동일)
                   Row(
                     children: [
                       // "맞아요" 버튼
@@ -135,7 +135,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // "아니에요" 버튼
+                      // "아니에요" 버튼 (이제 기존 "모르겠어요" 동작 수행)
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -145,9 +145,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
+                          onPressed:
+                              _navigateToSelectImageScreen, // ✅ 기존 "모르겠어요" 동작 수행
                           child: const Text("아니에요"),
                         ),
                       ),

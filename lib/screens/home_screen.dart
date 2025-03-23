@@ -1,4 +1,3 @@
-import 'dart:convert'; // 🔧 Flask JSON 응답 처리를 위해 추가
 import 'package:flutter/material.dart';
 import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
@@ -7,7 +6,8 @@ import 'package:flutter_application_with_figma/screens/community_screen.dart';
 import 'package:flutter_application_with_figma/screens/select_photo_screen.dart';
 import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
 import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
-import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
+//import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
+import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
 
 // 🔧 HomeScreen을 StatefulWidget으로 변경하여 상태 관리 가능하도록 수정
 class HomeScreen extends StatefulWidget {
@@ -24,40 +24,28 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    checkServerConnection();
     checkSession();
   }
 
-  // 🔧 Flask 서버의 연결 상태를 확인하는 함수
-  Future<void> checkServerConnection() async {
+  // ✅ Flask의 `/api/session` 엔드포인트 호출
+  Future<void> fetchSessionInfo() async {
     try {
-      final response = await http.get(Uri.parse(
-          'http://127.0.0.1:5000/api/ping')); // 🔧 Flask API 호출 (서버 URL 수정 필요)
-      if (response.statusCode == 200) {
-        setState(() {
-          serverStatus =
-              jsonDecode(response.body)["message"]; // 🔧 성공 시 응답 메시지 표시
-        });
+      final response = await dio.get('/api/session'); // dio 사용
+      if (response.statusCode == 204) {
+        print("✅ 세션 정보 요청 성공 (204 No Content)");
       } else {
-        setState(() {
-          serverStatus =
-              "연결 실패 (Status: ${response.statusCode})"; // 🔧 상태 코드에 따른 실패 처리
-        });
+        print("⚠️ 세션 정보 요청 실패: ${response.statusCode}");
       }
     } catch (e) {
-      setState(() {
-        serverStatus =
-            "연결 오류~~~~~~~~~~~~~~~~~~~~~~~~~: $e"; // 🔧 예외 발생 시 오류 메시지 표시
-      });
+      print("❌ API 요청 오류: $e");
     }
   }
 
   Future<void> checkSession() async {
     try {
-      final response =
-          await http.get(Uri.parse('http://127.0.0.1:5000/api/session'));
+      final response = await dio.get('/api/session'); // dio 사용
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = response.data; // dio는 자동으로 JSON 파싱됨
         if (data['loggedIn'] == true) {
           setState(() {
             isLoggedIn = true;
@@ -352,39 +340,41 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       // 하단 네비게이션 바 (고정)
+      // 네비게이션 바
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
         currentIndex: 0, // 현재 선택된 인덱스
-        onTap: (index) {
+        onTap: (index) async {
           if (index == 1) {
-            // 커뮤니티 탭 클릭 시
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
             );
           } else if (index == 3) {
-            // 싯가 아이콘 클릭 시
             Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => const MarketPriceScreen()),
             );
           } else if (index == 4) {
-            // ✅ 마이페이지 탭 클릭 시
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const MyPageScreen()),
-            );
-          } else if (index == 4) {
-            if (isLoggedIn) {
+            // ✅ 마이페이지 클릭 시 세션 상태 확인 후 분기
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const MyPageLoginScreen()),
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
               );
-            } else {
+            } catch (e) {
+              // 오류 발생 시 기본 마이페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const MyPageScreen()),
@@ -392,7 +382,6 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }
         },
-
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
           BottomNavigationBarItem(
