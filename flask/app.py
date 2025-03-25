@@ -177,8 +177,9 @@ class MarketPrice(db.Model):
     price_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
     size_category = db.Column(ENUM('소', '중', '대'), nullable=False)
-    min_weight = db.Column(DECIMAL(10,2), nullable=False)
-    max_weight = db.Column(DECIMAL(10,2), nullable=False)
+    min_weight = db.Column(DECIMAL(10, 2), nullable=False)
+    max_weight = db.Column(DECIMAL(10, 2), nullable=False)
+    price = db.Column(db.Integer, nullable=False)  # 💰 가격 필드 추가
 
     def to_json(self):
         return {
@@ -186,7 +187,8 @@ class MarketPrice(db.Model):
             "fish_id": self.fish_id,
             "size_category": self.size_category,
             "min_weight": float(self.min_weight),
-            "max_weight": float(self.max_weight)
+            "max_weight": float(self.max_weight),
+            "price": self.price
         }
 
 # ----------------------------
@@ -333,6 +335,12 @@ class CaughtFish(db.Model):
 @app.route('/api/fishes', methods=['GET'])
 def get_fishes():
     """
+    간단 요약: 
+    물고기 정보+내가 잡은 물고기 싯가총액 반환
+    때문에 uid로 여러 테이블 조회함 
+    그래서 물고기 정보만 가져오는 api를 따로 만들었음: 
+    """
+    """
     각 물고기(fish) 별로, 현재 로그인한 사용자가 작성한 fishing_log 테이블에서
     해당 fish_id와 일치하는 로그의 market_price 값을 모두 합산하여
     fish 객체에 price 필드로 추가한 후 JSON 형식으로 반환하는 API 엔드포인트.
@@ -354,6 +362,16 @@ def get_fishes():
     return jsonify(results)
 
 
+@app.route('/api/all_fish_info', methods=['GET'])
+def get_fish_details():
+    try:
+        fish_list = Fish.query.all()
+        for fish in fish_list:
+            print(fish.to_json())
+            
+        return jsonify([fish.to_json() for fish in fish_list]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/caught_fish', methods=['GET'])
@@ -614,6 +632,15 @@ def predict():
     return jsonify(response)
 
 
+@app.route('/api/market_price', methods=['GET'])
+def get_market_prices():
+    try:
+        market_prices = MarketPrice.query.all()
+        for price in market_prices:
+            print(price.to_json())
+        return jsonify([price.to_json() for price in market_prices]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 

@@ -44,6 +44,7 @@ dependencies:
   dio: ^5.8.0+1
   dio_cookie_manager: ^3.2.0
   cookie_jar: ^4.0.8
+  shared_preferences: ^2.5.2
 
 
 dev_dependencies:
@@ -106,6 +107,12 @@ flutter:
     - assets/images/fish_image11.png
     - assets/images/fish_image12.png
     - assets/icons/small_stick_icon.png
+    - assets/images/goodExample.png
+    - assets/images/gamseongdom.jpg
+    - assets/images/jeomnongeo.jpg
+    - assets/images/nongeo.jpg
+    - assets/images/saenunchi.jpg
+    - assets/images/neobchinongeo.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
+import 'market_price_screen.dart'; // CombinedFishInfo, MarketPriceFish 모델이 정의된 파일
 
 class PriceDetailScreen extends StatelessWidget {
-  const PriceDetailScreen({super.key});
+  final CombinedFishInfo combinedFishInfo;
+
+  const PriceDetailScreen({super.key, required this.combinedFishInfo});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F7), // ✅ 배경색 적용
+      backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4A68EA), // ✅ 헤더 색상 적용
-        title: const Text("감성돔", style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF4A68EA),
+        title: Text(
+          combinedFishInfo.name,
+          style: const TextStyle(color: Colors.white),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -21,11 +27,10 @@ class PriceDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🐟 물고기 이미지
+          // 물고기 이미지: 물고기 종에 따라 에셋 이미지 선택
           Container(
             width: double.infinity,
             color: Colors.white,
@@ -33,24 +38,23 @@ class PriceDetailScreen extends StatelessWidget {
             child: Column(
               children: [
                 Image.asset(
-                  "assets/images/fish_image12.png",
-                  height: 200, // ✅ 이미지 크기 조정
-                  fit: BoxFit.cover,
+                  getAssetImageForFish(combinedFishInfo.name),
+                  height: 200,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 8),
               ],
             ),
           ),
-
-          // 🔹 물고기 이름 + 좋아요/공유 아이콘
+          // 물고기 이름과 좋아요/공유 아이콘
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "감성돔",
-                  style: TextStyle(
+                Text(
+                  combinedFishInfo.name,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
@@ -59,8 +63,8 @@ class PriceDetailScreen extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.favorite,
-                          color: Color(0xFFFF473E)), // ✅ 좋아요 아이콘 (빨간색)
+                      icon:
+                          const Icon(Icons.favorite, color: Color(0xFFFF473E)),
                       onPressed: () {},
                     ),
                     IconButton(
@@ -72,12 +76,11 @@ class PriceDetailScreen extends StatelessWidget {
               ],
             ),
           ),
-
-          // 📌 "국산 / 자연산" 타이틀 및 가격 정보 포함 ✅
+          // 가격 정보 컨테이너 (가격 리스트 출력)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 0), // ✅ 좌우 패딩 제거
+            padding: const EdgeInsets.symmetric(horizontal: 0),
             child: Container(
-              width: double.infinity, // ✅ 전체 너비 차지하도록 설정
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -86,9 +89,9 @@ class PriceDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 🔹 "국산 / 자연산" 타이틀
+                  // 타이틀 ("국산 / 자연산" 고정 텍스트)
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16), // ✅ 좌측 정렬 유지
+                    padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       "국산 / 자연산",
                       style: TextStyle(
@@ -99,60 +102,29 @@ class PriceDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // 🔹 "활어 kg당" 타이틀 + 아이콘 포함 ✅
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Image.asset(
-                          "assets/icons/small_stick_icon.png",
-                          height: 12, // ✅ 아이콘 크기 조정
-                        ),
-                        const SizedBox(width: 8), // ✅ 간격 조정
-                        const Text(
-                          "활어",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          "kg 당",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4A68EA), // ✅ 파란색 적용
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // 📌 가격 리스트 ✅ (한 컨테이너에 포함)
-                  const _PriceRow(
-                      label: "소", weight: "1kg 미만", price: "50,000원"),
-                  const _PriceRow(
-                      label: "중", weight: "1~2kg 미만", price: "49,000원"),
-                  const _PriceRow(
-                      label: "대", weight: "2~3kg 미만", price: "60,000원"),
+                  // 동적으로 가격 리스트 생성
+                  ...combinedFishInfo.allPrices.map((priceInfo) {
+                    String weightInfo =
+                        "${priceInfo.minWeight.toStringAsFixed(1)}~${priceInfo.maxWeight.toStringAsFixed(1)}kg";
+                    String priceText = "${priceInfo.price}원";
+                    return _PriceRow(
+                      label: priceInfo.sizeCategory,
+                      weight: weightInfo,
+                      price: priceText,
+                    );
+                  }).toList(),
                 ],
               ),
             ),
           ),
         ],
       ),
-
-      // 🟡 하단 네비게이션 바
+      // 하단 네비게이션 바 (디자인 그대로 유지)
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 3, // ✅ "싯가" 탭 활성화
+        currentIndex: 3,
         onTap: (index) {
           if (index == 0) {
             Navigator.pop(context);
@@ -170,7 +142,7 @@ class PriceDetailScreen extends StatelessWidget {
   }
 }
 
-// 📌 가격 행 위젯 (아이콘 포함 + 간격 조정)
+// 가격 행 위젯 (변경 없음)
 class _PriceRow extends StatelessWidget {
   final String label;
   final String weight;
@@ -185,20 +157,16 @@ class _PriceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: 8, horizontal: 16), // ✅ 좌우 정렬 조정
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
         children: [
-          // 🔹 아이콘 추가
           Image.asset(
             "assets/icons/small_stick_icon.png",
             height: 12,
           ),
-          const SizedBox(width: 8), // ✅ 간격 조정
-
-          // 🔹 소/중/대 라벨
+          const SizedBox(width: 8),
           SizedBox(
-            width: 24, // ✅ 고정 너비 설정 (일관성 유지)
+            width: 24,
             child: Text(
               label,
               style: const TextStyle(
@@ -208,10 +176,7 @@ class _PriceRow extends StatelessWidget {
               ),
             ),
           ),
-
-          const SizedBox(width: 12), // ✅ 라벨과 무게 정보 간격
-
-          // 🔹 무게 정보
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               weight,
@@ -222,8 +187,6 @@ class _PriceRow extends StatelessWidget {
               ),
             ),
           ),
-
-          // 🔹 가격 정보 (우측 정렬)
           Text(
             price,
             textAlign: TextAlign.right,
@@ -236,5 +199,23 @@ class _PriceRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// 물고기 종에 맞게 에셋 이미지 경로를 선택하는 함수
+String getAssetImageForFish(String fishName) {
+  switch (fishName) {
+    case '감성돔':
+      return 'assets/images/gamseungdom.jpg';
+    case '점농어':
+      return 'assets/images/jeomnongeo.jpg';
+    case '농어':
+      return 'assets/images/nongeo.jpg';
+    case '새눈치':
+      return 'assets/images/saenunchi.jpg';
+    case '넙치농어':
+      return 'assets/images/neobchinongeo.jpg';
+    default:
+      return 'assets/images/default_fish.png';
   }
 }

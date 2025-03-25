@@ -12,7 +12,7 @@ from flask import current_app as app
 
 # ✅ 모델 경로 설정
 yolo_model_path = r"C:\Users\n3225\OneDrive\Desktop\model_test\best.pt"
-hybrid_model_path = r"C:\Users\n3225\pycharm_source_code\python\imageprocessing\.venv\Scripts\capstone\hybrid_fish_classifier.pth"
+hybrid_model_path =  r"C:\Users\n3225\pycharm_source_code\python\imageprocessing\.venv\Scripts\capstone\hybrid_fish_classifier.pth"
 
 # ✅ YOLOv8 탐지 모델 로드
 yolo_model = YOLO(yolo_model_path)

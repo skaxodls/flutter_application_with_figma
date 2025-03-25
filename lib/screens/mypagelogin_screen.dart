@@ -150,7 +150,7 @@ class MyPageLoginScreen extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundImage: AssetImage("assets/images/profile_avatar.png"),
+            backgroundImage: AssetImage("assets/icons/profile_icon.png"),
           ),
           const SizedBox(width: 10),
           Column(
