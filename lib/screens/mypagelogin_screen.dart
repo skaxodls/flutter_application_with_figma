@@ -16,6 +16,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
   String username = '';
   String region = '';
   int uid = 0;
+  String user_id = '';
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
           username = data['username'];
           region = data['region'];
           uid = data['uid'];
+          user_id = data['user_id'];
         });
       }
     } catch (e) {
@@ -160,23 +162,32 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                username,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Text(
+                    username,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(width: 8), // 가로 간격
+                  Text(
+                    " $user_id",
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
               ),
               Text(
                 region,
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-              Text(
-                "UID $uid",
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ],
           ),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.settings, size: 30, color: Colors.black),
+            icon: Image.asset(
+              "assets/mypage_images/setting.png",
+              width: 30,
+              height: 30,
+            ),
             onPressed: () {},
           ),
         ],
@@ -193,20 +204,31 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            "서비스",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _serviceIcon("내 낚시 포인트", Icons.place),
-              _serviceIcon("어류 도감", Icons.book),
+              _serviceImageIcon(
+                  "내 낚시 포인트", "assets/mypage_images/map_icon2.png"),
+              _serviceImageIcon("어류 도감", "assets/mypage_images/book_icon2.png"),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _serviceIcon("커뮤니티", Icons.people),
-              _serviceIcon("싯가", Icons.attach_money),
+              _serviceImageIcon("커뮤니티", "assets/mypage_images/community.png"),
+              _serviceImageIcon("싯가", "assets/mypage_images/coin.png"),
             ],
           ),
         ],
@@ -214,16 +236,27 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
     );
   }
 
-  Widget _serviceIcon(String title, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 40),
-        const SizedBox(height: 5),
-        Text(
-          title,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
-      ],
+  Widget _serviceImageIcon(String title, String imagePath) {
+    return SizedBox(
+      width: 130, // 고정 너비 설정 (아이콘 정렬 통일 목적)
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Image.asset(imagePath, width: 30, height: 30),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                title,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -236,20 +269,35 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            "나의 거래",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
           _transactionItem("찜한 목록", Icons.favorite),
           _transactionItem("거래 일정 관리", Icons.calendar_today),
-          _transactionItem("판매 내역", Icons.list),
-          _transactionItem("구매 내역", Icons.shopping_cart),
-          _transactionItem("내 활동구역 글 모아보기", Icons.menu),
+          _transactionItem("판매 내역", null,
+              imagePath: "assets/mypage_images/bill.png"),
+          _transactionItem("구매 내역", null,
+              imagePath: "assets/mypage_images/shopping-basket.png"),
+          _transactionItem("내 활동구역 글 모아보기", null,
+              imagePath: "assets/mypage_images/post_icon.png"),
         ],
       ),
     );
   }
 
-  Widget _transactionItem(String title, IconData icon) {
+  Widget _transactionItem(String title, IconData? icon, {String? imagePath}) {
     return ListTile(
-      leading: Icon(icon, color: Colors.white),
+      leading: imagePath != null
+          ? Image.asset(imagePath, width: 24, height: 24)
+          : Icon(icon, color: Colors.white),
       title: Text(title,
           style: const TextStyle(color: Colors.white, fontSize: 15)),
       trailing:

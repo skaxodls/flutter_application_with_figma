@@ -841,6 +841,8 @@ def get_user_profile():
 
     user = Members.query.get(uid)
     region = Region.query.get(user.region_id)
+    
+    print(user.to_json())
 
     return jsonify({
         "user_id": user.user_id,

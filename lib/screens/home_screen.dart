@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
-import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+//screens
 import 'package:flutter_application_with_figma/screens/community_screen.dart';
 import 'package:flutter_application_with_figma/screens/select_photo_screen.dart';
 import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
 import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
+import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
+
 //import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
 
@@ -351,6 +354,12 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
+            );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
             );
           } else if (index == 3) {
             Navigator.push(
