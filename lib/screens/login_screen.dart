@@ -62,6 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (context) => const MyPageLoginScreen()),
         );
+      } else if (response.statusCode == 401) {
+        // 🔔 로그인 실패 - 아이디 또는 비밀번호 불일치
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("아이디 또는 비밀번호를 다시 확인하세요.")),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("로그인 실패: ${response.data['error']}")),
