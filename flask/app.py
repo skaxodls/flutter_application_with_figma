@@ -738,7 +738,9 @@ def register():
     user_id = data.get('id')
     password = data.get('password')
     username = data.get('username')
-    region_name = data.get('location')
+    # region_name = data.get('location')
+    region_name = data.get('region_name')
+    detailed_address = data.get('detailed_address')
     
     if not user_id or not password or not username or not region_name:
         return jsonify({"error": "모든 필드를 입력해주세요."}), 400
@@ -747,9 +749,9 @@ def register():
     if existing_user:
         return jsonify({"error": "이미 존재하는 아이디입니다."}), 400
 
-    region = Region.query.filter_by(region_name=region_name).first()
+    region = Region.query.filter_by(region_name=region_name, detailed_address=detailed_address).first()
     if not region:
-        region = Region(region_name=region_name, detailed_address=region_name)
+        region = Region(region_name=region_name, detailed_address=detailed_address)
         db.session.add(region)
         db.session.commit()
 
