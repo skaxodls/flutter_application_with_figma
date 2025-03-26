@@ -2,16 +2,46 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'community_screen.dart';
 import 'market_price_screen.dart';
-import 'mypage_screen.dart'; // 로그아웃 시 이동할 기본 마이페이지 화면
-//import 'package:http/http.dart' as http;
-import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
+import 'mypage_screen.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart';
 
-class MyPageLoginScreen extends StatelessWidget {
+class MyPageLoginScreen extends StatefulWidget {
   const MyPageLoginScreen({super.key});
+
+  @override
+  State<MyPageLoginScreen> createState() => _MyPageLoginScreenState();
+}
+
+class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
+  String username = '';
+  String region = '';
+  int uid = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserProfile();
+  }
+
+  Future<void> fetchUserProfile() async {
+    try {
+      final response = await dio.get('/api/user_profile');
+      if (response.statusCode == 200) {
+        final data = response.data;
+        setState(() {
+          username = data['username'];
+          region = data['region'];
+          uid = data['uid'];
+        });
+      }
+    } catch (e) {
+      print('사용자 정보 가져오기 실패: $e');
+    }
+  }
+
   Future<void> _logout(BuildContext context) async {
     try {
-      final response = await dio.post('/api/logout'); // dio 사용
-
+      final response = await dio.post('/api/logout');
       if (response.statusCode == 200) {
         Navigator.pushReplacement(
           context,
@@ -49,17 +79,6 @@ class MyPageLoginScreen extends StatelessWidget {
             Image.asset('assets/icons/fish_icon1.png', height: 24),
           ],
         ),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.logout, color: Colors.black),
-        //     onPressed: () {
-        //       Navigator.pushReplacement(
-        //         context,
-        //         MaterialPageRoute(builder: (context) => const MyPageScreen()),
-        //       );
-        //     }, // 로그아웃 시 기본 마이페이지 화면으로 이동
-        //   ),
-        // ],
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),
@@ -71,35 +90,22 @@ class MyPageLoginScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 프로필 섹션
             _buildProfileSection(),
-
             const SizedBox(height: 10),
-
-            // 🔹 서비스 아이콘 섹션
             _buildServiceSection(),
-
             const SizedBox(height: 10),
-
-            // 🔹 거래 내역 섹션
             _buildMyTransactions(),
-
             const SizedBox(height: 10),
-
-            // 🔹 내가 작성한 글
             _buildMyPosts(),
-
             const SizedBox(height: 80),
           ],
         ),
       ),
-
-      // 🔹 네비게이션 바
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 4, // 마이페이지 활성화
+        currentIndex: 4,
         onTap: (index) {
           if (index == 0) {
             Navigator.pushReplacement(
@@ -118,7 +124,6 @@ class MyPageLoginScreen extends StatelessWidget {
                   builder: (context) => const MarketPriceScreen()),
             );
           } else if (index == 4) {
-            // 현재 로그인 상태 유지: 마이페이지 로그인 상태 유지
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -137,7 +142,6 @@ class MyPageLoginScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 프로필 섹션
   Widget _buildProfileSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
@@ -155,17 +159,17 @@ class MyPageLoginScreen extends StatelessWidget {
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
-                "userId_01",
+                username,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Text(
-                "경상남도 창원시",
+                region,
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               Text(
-                "UID 81000001",
+                "UID $uid",
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ],
@@ -173,14 +177,13 @@ class MyPageLoginScreen extends StatelessWidget {
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.settings, size: 30, color: Colors.black),
-            onPressed: () {}, // 설정 페이지 이동 가능
+            onPressed: () {},
           ),
         ],
       ),
     );
   }
 
-  // 🔹 서비스 섹션 (내 낚시 포인트, 어류 도감, 커뮤니티, 싯가)
   Widget _buildServiceSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
@@ -224,7 +227,6 @@ class MyPageLoginScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 나의 거래 섹션
   Widget _buildMyTransactions() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
@@ -252,11 +254,10 @@ class MyPageLoginScreen extends StatelessWidget {
           style: const TextStyle(color: Colors.white, fontSize: 15)),
       trailing:
           const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
-      onTap: () {}, // 기능 추가 가능
+      onTap: () {},
     );
   }
 
-  // 🔹 내가 작성한 글 섹션
   Widget _buildMyPosts() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
@@ -268,7 +269,6 @@ class MyPageLoginScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 제목과 더보기 버튼
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
@@ -278,8 +278,6 @@ class MyPageLoginScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-
-          // 작성한 게시글
           ListTile(
             leading: Image.asset("assets/images/fish_image1.png",
                 width: 60, height: 60),
