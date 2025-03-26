@@ -14,7 +14,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _regionNameController = TextEditingController();
+  final TextEditingController _detailedAddressController =
+      TextEditingController();
 
   Future<void> _openAddressSearch(BuildContext context) async {
     final controller = WebviewController();
@@ -23,13 +25,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     controller.webMessage.listen((message) {
       try {
         final data = jsonDecode(message);
-        // final address = data['extra'] ?? ''; // ⚠️ 변경: extra 값을 사용 (시/구/동)
-        final detailAddress = data['address'] ?? ''; // 상세주소
-        if (detailAddress.isNotEmpty) {
+        final regionName = data['extra'] ?? ''; // 시/구/동
+        final detailedAddress = data['address'] ?? ''; // 상세 주소
+        if (regionName.isNotEmpty && detailedAddress.isNotEmpty) {
           setState(() {
-            _locationController.text = detailAddress;
+            _regionNameController.text = regionName;
+            _detailedAddressController.text = detailedAddress;
           });
-          Navigator.pop(context); // 닫기
+          Navigator.pop(context);
         }
       } catch (e) {
         print('주소 파싱 실패: \$e');
@@ -53,9 +56,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final id = _idController.text.trim();
     final pw = _passwordController.text.trim();
     final name = _usernameController.text.trim();
-    final location = _locationController.text.trim();
+    final regionName = _regionNameController.text.trim();
+    final detailedAddress = _detailedAddressController.text.trim();
 
-    if (id.isEmpty || pw.isEmpty || name.isEmpty || location.isEmpty) {
+    if (id.isEmpty ||
+        pw.isEmpty ||
+        name.isEmpty ||
+        regionName.isEmpty ||
+        detailedAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("모든 항목을 입력해주세요.")),
       );
@@ -71,7 +79,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           'id': id,
           'password': pw,
           'username': name,
-          'location': location,
+          'region_name': regionName,
+          'detailed_address': detailedAddress,
         }),
       );
 
@@ -79,7 +88,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("회원가입 완료! 🎉")),
         );
-        Navigator.pop(context); // 회원가입 후 뒤로 이동
+        Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("회원가입 실패: \${response.body}")),
@@ -167,15 +176,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildLocationPickerField(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: GestureDetector(
-        onTap: () => _openAddressSearch(context),
-        child: AbsorbPointer(
-          child: TextField(
-            controller: _locationController,
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () => _openAddressSearch(context),
+            child: AbsorbPointer(
+              child: TextField(
+                controller: _regionNameController,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFFD9D9D9),
+                  hintText: "거주 지역 (시/구/동)",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _detailedAddressController,
+            readOnly: true,
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFFD9D9D9),
-              hintText: "거주 지역 선택",
+              hintText: "상세 주소 (도로명 등)",
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide.none,
@@ -184,7 +213,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
