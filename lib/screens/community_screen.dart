@@ -1,17 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_with_figma/screens/write_screen.dart'; // 🚀 WriteScreen 추가
-import 'package:flutter_application_with_figma/screens/content_reader_screen.dart'; // 🚀 ContentReaderScreen 추가
-import 'home_screen.dart'; // ✅ 홈 화면 추가
+import 'package:flutter_application_with_figma/screens/write_screen.dart';
+import 'package:flutter_application_with_figma/screens/content_reader_screen.dart';
+import 'home_screen.dart';
 import 'mypage_screen.dart';
 import 'market_price_screen.dart';
+import 'mypagelogin_screen.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
 
-class CommunityScreen extends StatelessWidget {
+class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
+
+  @override
+  State<CommunityScreen> createState() => _CommunityScreenState();
+}
+
+class _CommunityScreenState extends State<CommunityScreen> {
+  bool isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    checkSession();
+  }
+
+  Future<void> checkSession() async {
+    try {
+      final response = await dio.get('/api/check_session');
+      if (response.statusCode == 200 && response.data['logged_in'] == true) {
+        setState(() {
+          isLoggedIn = true;
+        });
+      }
+    } catch (e) {
+      print('세션 확인 실패: \$e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F7), // 배경색 설정
+      backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -26,95 +54,97 @@ class CommunityScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 5),
-            Image.asset('assets/icons/fish_icon1.png',
-                height: 24), // Fish Go 로고
+            Image.asset('assets/icons/fish_icon1.png', height: 24),
           ],
         ),
       ),
-      body: Expanded(
-        child: SingleChildScrollView(
-          // ✅ 스크롤 가능하도록 수정
-          child: Column(
-            children: const [
-              _CommunityPost(
-                image: 'assets/images/fish_image1.png',
-                title: "농어 팝니다",
-                location: "포항시 이동 · 20분 전",
-                price: "20,000원",
-                comments: 3,
-                likes: 3,
-              ),
-              _CommunityPost(
-                image: 'assets/images/fish_image2.png',
-                title: "갓잡은 감성돔 팝니다",
-                location: "남해군 남면 · 1시간 전",
-                price: "20,000원",
-                comments: 2,
-                likes: 5,
-                tag: "예약중",
-                tagColor: Color(0xFF4A68EA), // 태그 색상 (파랑)
-              ),
-              _CommunityPost(
-                image: 'assets/images/fish_image3.png',
-                title: "방어팝니다",
-                location: "진해항 부근 · 9시간 전",
-                price: "25,000원",
-                comments: 1,
-                likes: 2,
-                tag: "거래완료",
-                tagColor: Colors.black, // 태그 색상 (검정)
-              ),
-              SizedBox(height: 80), // 여백 추가
-            ],
-          ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: const [
+            _CommunityPost(
+              image: 'assets/images/fish_image1.png',
+              title: "농어 팝니다",
+              location: "포항시 이동 · 20분 전",
+              price: "20,000원",
+              comments: 3,
+              likes: 3,
+            ),
+            _CommunityPost(
+              image: 'assets/images/fish_image2.png',
+              title: "갓잡은 감성돔 팝니다",
+              location: "남해군 남면 · 1시간 전",
+              price: "20,000원",
+              comments: 2,
+              likes: 5,
+              tag: "예약중",
+              tagColor: Color(0xFF4A68EA),
+            ),
+            _CommunityPost(
+              image: 'assets/images/fish_image3.png',
+              title: "방어팝니다",
+              location: "진해항 부근 · 9시간 전",
+              price: "25,000원",
+              comments: 1,
+              likes: 2,
+              tag: "거래완료",
+              tagColor: Colors.black,
+            ),
+            SizedBox(height: 80),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (context) => const WriteScreen()), // 글쓰기 페이지 이동
+            MaterialPageRoute(builder: (context) => const WriteScreen()),
           );
         },
-        backgroundColor: const Color(0xFFD9D9D9), // 글쓰기 버튼 색상
+        backgroundColor: const Color(0xFFD9D9D9),
         icon: Image.asset('assets/icons/pencil_icon.png', height: 24),
-        label: const Text("글쓰기",
-            style: TextStyle(color: Colors.black)), // 글씨 색상 검정
+        label: const Text("글쓰기", style: TextStyle(color: Colors.black)),
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
-        unselectedItemColor: const Color(0xFF999999), // 비활성화 아이콘 색상 적용
+        unselectedItemColor: const Color(0xFF999999),
         type: BottomNavigationBarType.fixed,
-        currentIndex: 1, // 현재 선택된 탭 (커뮤니티)
-        onTap: (index) {
+        currentIndex: 1,
+        onTap: (index) async {
           if (index == 0) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) => const HomeScreen()), // ✅ 홈 화면 이동
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           } else if (index == 1) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      const CommunityScreen()), // ✅ 커뮤니티 화면 유지
+              MaterialPageRoute(builder: (context) => const CommunityScreen()),
             );
           } else if (index == 3) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) =>
-                      const MarketPriceScreen()), // ✅ 싯가 화면 이동
+                  builder: (context) => const MarketPriceScreen()),
             );
           } else if (index == 4) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const MyPageScreen()), // ✅ 마이페이지 이동
-            );
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
           }
         },
         items: const [
@@ -129,7 +159,6 @@ class CommunityScreen extends StatelessWidget {
   }
 }
 
-// 📰 커뮤니티 게시글 위젯
 class _CommunityPost extends StatelessWidget {
   final String image;
   final String title;
@@ -155,7 +184,6 @@ class _CommunityPost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // 🔥 클릭 이벤트 추가
       onTap: () {
         Navigator.push(
           context,
@@ -189,20 +217,16 @@ class _CommunityPost extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 🐟 게시글 이미지
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child:
                   Image.asset(image, height: 95, width: 95, fit: BoxFit.cover),
             ),
             const SizedBox(width: 10),
-
-            // 📝 게시글 내용
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 제목 및 태그
                   Row(
                     children: [
                       Expanded(
@@ -231,8 +255,6 @@ class _CommunityPost extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-
-                  // 위치 정보
                   Row(
                     children: [
                       const Icon(Icons.location_on,
@@ -246,8 +268,6 @@ class _CommunityPost extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-
-                  // 가격 & 좋아요, 댓글
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
