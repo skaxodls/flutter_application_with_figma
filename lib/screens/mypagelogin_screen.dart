@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
-import 'community_screen.dart';
-import 'market_price_screen.dart';
 import 'mypage_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart';
+
+//service screen
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
+import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
+import 'package:flutter_application_with_figma/screens/community_screen.dart';
+import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
+
+//transaction screen
+import 'package:flutter_application_with_figma/screens/favorite_screen.dart';
+import 'package:flutter_application_with_figma/screens/trade_calendar_screen.dart';
+import 'package:flutter_application_with_figma/screens/trade_history_screen.dart';
+import 'package:flutter_application_with_figma/screens/local_post_screen.dart';
 
 class MyPageLoginScreen extends StatefulWidget {
   const MyPageLoginScreen({super.key});
@@ -219,16 +229,55 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _serviceImageIcon(
-                  "내 낚시 포인트", "assets/mypage_images/map_icon2.png"),
-              _serviceImageIcon("어류 도감", "assets/mypage_images/book_icon2.png"),
+                "내 낚시 포인트",
+                "assets/mypage_images/map_icon2.png",
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const MyPointScreen()),
+                  );
+                },
+              ),
+              _serviceImageIcon(
+                "어류 도감",
+                "assets/mypage_images/book_icon2.png",
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const PictorialBookScreen()),
+                  );
+                },
+              ),
             ],
           ),
           const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _serviceImageIcon("커뮤니티", "assets/mypage_images/community.png"),
-              _serviceImageIcon("싯가", "assets/mypage_images/coin.png"),
+              _serviceImageIcon(
+                "커뮤니티",
+                "assets/mypage_images/community.png",
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const CommunityScreen()),
+                  );
+                },
+              ),
+              _serviceImageIcon(
+                "싯가",
+                "assets/mypage_images/coin.png",
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const MarketPriceScreen()),
+                  );
+                },
+              ),
             ],
           ),
         ],
@@ -236,26 +285,29 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
     );
   }
 
-  Widget _serviceImageIcon(String title, String imagePath) {
-    return SizedBox(
-      width: 130, // 고정 너비 설정 (아이콘 정렬 통일 목적)
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Image.asset(imagePath, width: 30, height: 30),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                title,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+  Widget _serviceImageIcon(String title, String imagePath, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 130,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Image.asset(imagePath, width: 30, height: 30),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -280,20 +332,70 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          _transactionItem("찜한 목록", Icons.favorite),
-          _transactionItem("거래 일정 관리", Icons.calendar_today),
-          _transactionItem("판매 내역", null,
-              imagePath: "assets/mypage_images/bill.png"),
-          _transactionItem("구매 내역", null,
-              imagePath: "assets/mypage_images/shopping-basket.png"),
-          _transactionItem("내 활동구역 글 모아보기", null,
-              imagePath: "assets/mypage_images/post_icon.png"),
+          _transactionItem(
+            "찜한 목록",
+            Icons.favorite,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FavoriteScreen()),
+              );
+            },
+          ),
+          _transactionItem(
+            "거래 일정 관리",
+            Icons.calendar_today,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const TradeCalendarScreen()),
+              );
+            },
+          ),
+          _transactionItem(
+            "판매 내역",
+            null,
+            imagePath: "assets/mypage_images/bill.png",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const TradeHistoryScreen()),
+              );
+            },
+          ),
+          _transactionItem(
+            "구매 내역",
+            null,
+            imagePath: "assets/mypage_images/shopping-basket.png",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const TradeHistoryScreen()),
+              );
+            },
+          ),
+          _transactionItem(
+            "내 활동구역 글 모아보기",
+            null,
+            imagePath: "assets/mypage_images/post_icon.png",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const LocalPostScreen()),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _transactionItem(String title, IconData? icon, {String? imagePath}) {
+  Widget _transactionItem(String title, IconData? icon,
+      {String? imagePath, VoidCallback? onTap}) {
     return ListTile(
       leading: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24)
@@ -302,7 +404,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
           style: const TextStyle(color: Colors.white, fontSize: 15)),
       trailing:
           const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 
