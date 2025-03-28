@@ -5,7 +5,8 @@ import 'home_screen.dart';
 import 'mypage_screen.dart';
 import 'market_price_screen.dart';
 import 'mypagelogin_screen.dart';
-import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
+import 'package:flutter_application_with_figma/dio_setup.dart';
+import 'package:intl/intl.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -16,11 +17,13 @@ class CommunityScreen extends StatefulWidget {
 
 class _CommunityScreenState extends State<CommunityScreen> {
   bool isLoggedIn = false;
+  List<dynamic> posts = []; // 🔹 게시글 리스트
 
   @override
   void initState() {
     super.initState();
     checkSession();
+    fetchPosts(); // 🔹 게시글 API 호출
   }
 
   Future<void> checkSession() async {
@@ -32,7 +35,31 @@ class _CommunityScreenState extends State<CommunityScreen> {
         });
       }
     } catch (e) {
-      print('세션 확인 실패: \$e');
+      print('세션 확인 실패: $e');
+    }
+  }
+
+  Future<void> fetchPosts() async {
+    try {
+      final response = await dio.get('/api/posts');
+      if (response.statusCode == 200) {
+        setState(() {
+          posts = response.data;
+        });
+      }
+    } catch (e) {
+      print("게시글 로드 실패: $e");
+    }
+  }
+
+  Color _statusColor(String? status) {
+    switch (status) {
+      case '예약중':
+        return const Color(0xFF4A68EA);
+      case '거래완료':
+        return Colors.black;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -58,47 +85,36 @@ class _CommunityScreenState extends State<CommunityScreen> {
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: const [
-            _CommunityPost(
-              image: 'assets/images/fish_image1.png',
-              title: "농어 팝니다",
-              location: "포항시 이동 · 20분 전",
-              price: "20,000원",
-              comments: 3,
-              likes: 3,
+      body: posts.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: posts.length,
+              itemBuilder: (context, index) {
+                final post = posts[index];
+                return _CommunityPost(
+                  image: post['image'] ?? 'assets/images/fish_image1.png',
+                  title: post['title'] ?? '제목 없음',
+                  location: post['location'] ?? '위치 없음',
+                  price: post['price'] ?? 0,
+                  comments: post['comment_count'] ?? 0,
+                  likes: post['like_count'] ?? 0,
+                  tag: post['status'],
+                  tagColor: _statusColor(post['status']),
+                );
+              },
             ),
-            _CommunityPost(
-              image: 'assets/images/fish_image2.png',
-              title: "갓잡은 감성돔 팝니다",
-              location: "남해군 남면 · 1시간 전",
-              price: "20,000원",
-              comments: 2,
-              likes: 5,
-              tag: "예약중",
-              tagColor: Color(0xFF4A68EA),
-            ),
-            _CommunityPost(
-              image: 'assets/images/fish_image3.png',
-              title: "방어팝니다",
-              location: "진해항 부근 · 9시간 전",
-              price: "25,000원",
-              comments: 1,
-              likes: 2,
-              tag: "거래완료",
-              tagColor: Colors.black,
-            ),
-            SizedBox(height: 80),
-          ],
-        ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const WriteScreen()),
-          );
+          if (isLoggedIn) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WriteScreen()),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("로그인이 필요합니다.")),
+            );
+          }
         },
         backgroundColor: const Color(0xFFD9D9D9),
         icon: Image.asset('assets/icons/pencil_icon.png', height: 24),
@@ -163,7 +179,7 @@ class _CommunityPost extends StatelessWidget {
   final String image;
   final String title;
   final String location;
-  final String price;
+  final int price;
   final int comments;
   final int likes;
   final String? tag;
@@ -183,6 +199,8 @@ class _CommunityPost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final formatter = NumberFormat('#,###');
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -272,9 +290,11 @@ class _CommunityPost extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        price,
+                        '${formatter.format(price)}원',
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       Row(
                         children: [
