@@ -90,6 +90,9 @@ class Members(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     username = db.Column(db.String(100), nullable=False)
     region_id = db.Column(db.Integer, db.ForeignKey('region.region_id', ondelete='SET NULL'))
+
+    region = db.relationship('Region', backref='members', lazy=True)
+    
     created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
 
     def to_json(self):
@@ -133,6 +136,7 @@ class Posts(db.Model):
     created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
     post_status = db.Column(ENUM('판매중', '예약중', '거래완료'), default='판매중')
     fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
+    price = db.Column(db.Integer, nullable=False)
 
     def to_json(self):
         return {
@@ -145,6 +149,7 @@ class Posts(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "post_status": self.post_status,
             "fish_id": self.fish_id
+            "price": self.price
         }
 
 # ----------------------------
@@ -642,10 +647,38 @@ def get_market_prices():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+#-----------------------------------------------------------
+#     커뮤니티 API
+#-----------------------------------------------------------
 
+@app.route('/api/posts', methods=['GET'])
+def get_all_posts():
+    try:
+        posts = Posts.query.order_by(Posts.created_at.desc()).all()
+        post_list = []
 
+        for post in posts:
+            user = Members.query.get(post.uid)
+            region = Region.query.get(user.region_id) if user and user.region_id else None
 
+            post_list.append({
+                'post_id': post.post_id,
+                'title': post.title,
+                'content': post.content,
+                'uid': post.uid,
+                'username': user.username if user else "Unknown",
+                'location': region.region_name if region else "",
+                'created_at': post.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'status': post.post_status,
+                'like_count': post.like_count,
+                'comment_count': post.comment_count,
+                'price': post.price
+            })
 
+        return jsonify(post_list), 200
+
+    except Exception as e:
+        return jsonify({'error': f'서버 오류: {str(e)}'}), 500
 
 #---------------------------
 #함수
