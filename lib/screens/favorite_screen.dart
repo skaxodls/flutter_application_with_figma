@@ -17,29 +17,45 @@ class _FavoriteScreenState extends State<FavoriteScreen>
         backgroundColor: const Color(0xFFF4F5F7),
         appBar: AppBar(
           elevation: 0,
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              const Text(
-                "Fish Go",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Image.asset('assets/icons/fish_icon1.png', height: 24),
-            ],
+          backgroundColor: const Color(0xFF3F7EFF),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.pop(context);
+            },
           ),
-          centerTitle: false,
-          bottom: const TabBar(
-            labelColor: Colors.black,
-            indicatorColor: Colors.black,
-            tabs: [
-              Tab(text: "품목"),
-              Tab(text: "상품"),
-            ],
+          title: const Text(
+            "찜한 목록",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline, color: Colors.white),
+              onPressed: () {
+                // TODO: 물음표 아이콘 동작
+              },
+            ),
+          ],
+          // ▼ AppBar 아래쪽에 TabBar를 배치하되, 배경을 따로 흰색으로 지정
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight),
+            child: Container(
+              color: Colors.white, // TabBar 배경 흰색
+              child: TabBar(
+                labelColor: Colors.blue, // 선택된 탭 글씨 파란색
+                unselectedLabelColor: Colors.grey, // 선택 안 된 탭 글씨 회색
+                indicatorColor: Colors.blue, // 인디케이터 파란색
+                tabs: const [
+                  Tab(text: "품목"),
+                  Tab(text: "상품"),
+                ],
+              ),
+            ),
           ),
         ),
         body: const TabBarView(

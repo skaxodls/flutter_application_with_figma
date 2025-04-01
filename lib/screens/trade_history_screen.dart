@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart';
 
 class TradeHistoryScreen extends StatefulWidget {
-  const TradeHistoryScreen({Key? key}) : super(key: key);
+  final int initialTab; // 0: 판매중, 1: 판매내역, 2: 구매내역
+  const TradeHistoryScreen({Key? key, required this.initialTab})
+      : super(key: key);
 
   @override
   State<TradeHistoryScreen> createState() => _TradeHistoryScreenState();
@@ -9,257 +12,183 @@ class TradeHistoryScreen extends StatefulWidget {
 
 class _TradeHistoryScreenState extends State<TradeHistoryScreen>
     with SingleTickerProviderStateMixin {
+  List sellingItems = []; // 판매중 (판매자가 등록했고 post_status가 '판매중' 또는 '예약중')
+  List sellingCompletedItems = []; // 판매내역 (판매자인 경우, post_status가 '거래완료')
+  List purchasedItems = []; // 구매내역 (구매자인 경우, post_status가 '거래완료')
+  bool isLoading = true;
+
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab,
+    );
+    fetchTradeHistory();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> fetchTradeHistory() async {
+    try {
+      final response = await dio.get("/api/trade_history");
+      if (response.statusCode == 200) {
+        final jsonData = response.data;
+        setState(() {
+          sellingItems = jsonData['sellingItems'];
+          sellingCompletedItems = jsonData['sellingCompletedItems'];
+          purchasedItems = jsonData['purchasedItems'];
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+        print("Failed to load trade history: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      print("Error fetching trade history: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3, // 탭 개수: 판매중, 거래완료, 구매
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F5F7),
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              const Text(
-                "Fish Go",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+    return isLoading
+        ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+        : Scaffold(
+            backgroundColor: const Color(0xFFF4F5F7),
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(110), // 전체 높이 조정
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 상단 파란색 영역
+                  Container(
+                    height: 60,
+                    color: const Color(0xFF4A68EA),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon:
+                              const Icon(Icons.arrow_back, color: Colors.white),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              "거래 목록",
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.help_outline,
+                              color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 하단 흰색 영역의 TabBar
+                  Container(
+                    color: Colors.white,
+                    child: TabBar(
+                      controller: _tabController,
+                      labelColor: Colors.black,
+                      indicatorColor: Colors.black,
+                      tabs: const [
+                        Tab(text: "판매중"),
+                        Tab(text: "판매내역"),
+                        Tab(text: "구매내역"),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 5),
-              Image.asset('assets/icons/fish_icon1.png', height: 24),
-              const SizedBox(width: 10),
-              const Text(
-                "거래 목록",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          bottom: const TabBar(
-            labelColor: Colors.black,
-            indicatorColor: Colors.black,
-            tabs: [
-              Tab(text: "판매중"),
-              Tab(text: "거래완료"),
-              Tab(text: "구매"),
-            ],
-          ),
-        ),
-        body: const TabBarView(
-          children: [
-            // 판매중 탭
-            _SellingTab(),
-            // 거래완료 탭
-            _CompletedTab(),
-            // 구매 탭
-            _PurchasedTab(),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.black,
-          type: BottomNavigationBarType.fixed,
-          currentIndex: 4, // 원하는 인덱스로 설정
-          onTap: (index) {
-            // TODO: 원하는 화면으로 이동하는 로직 작성
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
-            BottomNavigationBarItem(icon: Icon(Icons.message), label: "커뮤니티"),
-            BottomNavigationBarItem(icon: Icon(Icons.star), label: "내 포인트"),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.attach_money), label: "싯가"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "마이페이지"),
-          ],
-        ),
-      ),
-    );
+            ),
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                TradeListWidget(trades: sellingItems),
+                TradeListWidget(trades: sellingCompletedItems),
+                TradeListWidget(trades: purchasedItems),
+              ],
+            ),
+            bottomNavigationBar: BottomNavigationBar(
+              selectedItemColor: Colors.black,
+              unselectedItemColor: Colors.black,
+              type: BottomNavigationBarType.fixed,
+              currentIndex: 4, // 네비게이션바의 현재 선택된 인덱스
+              onTap: (index) {
+                // TODO: 하단 네비게이션 이동 로직 작성
+              },
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.message), label: "커뮤니티"),
+                BottomNavigationBarItem(icon: Icon(Icons.star), label: "내 포인트"),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.attach_money), label: "싯가"),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.person), label: "마이페이지"),
+              ],
+            ),
+          );
   }
 }
 
-// ----------------------- 판매중 탭 -----------------------
-class _SellingTab extends StatelessWidget {
-  const _SellingTab({Key? key}) : super(key: key);
+class TradeListWidget extends StatelessWidget {
+  final List trades;
+  const TradeListWidget({Key? key, required this.trades}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // 예시용 더미 데이터
-    final List<Map<String, dynamic>> sellingItems = [
-      {
-        "title": "농어 팝니다",
-        "locationTime": "포항시 이동 · 20분 전",
-        "price": "20,000원",
-        "imagePath": "assets/images/fish_image1.png",
-        "commentCount": 3,
-        "favoriteCount": 5,
-      },
-      {
-        "title": "감성동 팝니다",
-        "locationTime": "포항 남구 · 1시간 전",
-        "price": "45,000원",
-        "imagePath": "assets/images/fish_image2.png",
-        "commentCount": 2,
-        "favoriteCount": 3,
-      },
-    ];
-
+    if (trades.isEmpty) {
+      return const Center(child: Text("표시할 거래 내역이 없습니다."));
+    }
     return ListView.builder(
       padding: const EdgeInsets.only(top: 10),
-      itemCount: sellingItems.length,
+      itemCount: trades.length,
       itemBuilder: (context, index) {
-        final item = sellingItems[index];
+        final trade = trades[index];
+        final title = trade['title'] ?? "";
+        final tradeDate = trade['trade_date'] ?? "";
+        final price = trade['price']?.toString() ?? "";
+        final postStatus = trade['post_status'] ?? "";
+        final imageUrl = trade['image_url'];
+
+        // imageUrl이 상대 경로일 경우 "http://127.0.0.1:5000"를 붙여 절대 URL로 변환
+        final fullImageUrl = (imageUrl != null && imageUrl.startsWith('/'))
+            ? "http://127.0.0.1:5000$imageUrl"
+            : imageUrl;
+
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
           child: ListTile(
-            leading: Image.asset(
-              item["imagePath"] as String,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
+            leading: fullImageUrl != null
+                ? Image.network(
+                    fullImageUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  )
+                : const Icon(Icons.image, size: 60),
             title: Text(
-              item["title"] as String,
+              title,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
-            subtitle: Text("${item["locationTime"]}\n${item["price"]}"),
+            subtitle: Text("$tradeDate\n가격: ${price}원\n상태: $postStatus"),
             isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.comment, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text("${item["commentCount"]}"),
-                const SizedBox(width: 12),
-                const Icon(Icons.favorite, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text("${item["favoriteCount"]}"),
-              ],
-            ),
-            onTap: () {
-              // TODO: 상세 페이지 이동 로직
-            },
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ----------------------- 거래완료 탭 -----------------------
-class _CompletedTab extends StatelessWidget {
-  const _CompletedTab({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    // 예시용 더미 데이터
-    final List<Map<String, dynamic>> completedItems = [
-      {
-        "title": "우럭 팝니다",
-        "locationTime": "포항시 북구 · 3시간 전",
-        "price": "30,000원",
-        "imagePath": "assets/images/fish_image1.png",
-        "commentCount": 1,
-        "favoriteCount": 2,
-      },
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 10),
-      itemCount: completedItems.length,
-      itemBuilder: (context, index) {
-        final item = completedItems[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-          child: ListTile(
-            leading: Image.asset(
-              item["imagePath"] as String,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
-            title: Text(
-              item["title"] as String,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text("${item["locationTime"]}\n${item["price"]}"),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.comment, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text("${item["commentCount"]}"),
-                const SizedBox(width: 12),
-                const Icon(Icons.favorite, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text("${item["favoriteCount"]}"),
-              ],
-            ),
-            onTap: () {
-              // TODO: 상세 페이지 이동 로직
-            },
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ----------------------- 구매 탭 -----------------------
-class _PurchasedTab extends StatelessWidget {
-  const _PurchasedTab({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    // 예시용 더미 데이터
-    final List<Map<String, dynamic>> purchasedItems = [
-      {
-        "title": "방어 삽니다",
-        "locationTime": "포항시 남구 · 1일 전",
-        "price": "40,000원",
-        "imagePath": "assets/images/fish_image2.png",
-        "commentCount": 0,
-        "favoriteCount": 1,
-      },
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 10),
-      itemCount: purchasedItems.length,
-      itemBuilder: (context, index) {
-        final item = purchasedItems[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-          child: ListTile(
-            leading: Image.asset(
-              item["imagePath"] as String,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
-            title: Text(
-              item["title"] as String,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text("${item["locationTime"]}\n${item["price"]}"),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.comment, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text("${item["commentCount"]}"),
-                const SizedBox(width: 12),
-                const Icon(Icons.favorite, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text("${item["favoriteCount"]}"),
-              ],
-            ),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () {
               // TODO: 상세 페이지 이동 로직
             },

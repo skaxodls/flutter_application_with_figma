@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart'; // Dio 인스턴스 설정 파일
+
+import 'package:flutter_application_with_figma/screens/write_screen.dart'; // 글쓰기 화면
 
 class LocalPostScreen extends StatefulWidget {
   const LocalPostScreen({Key? key}) : super(key: key);
@@ -8,143 +11,228 @@ class LocalPostScreen extends StatefulWidget {
 }
 
 class _LocalPostScreenState extends State<LocalPostScreen> {
-  // 예시용 더미 데이터
-  final List<Map<String, dynamic>> localPosts = [
-    {
-      "title": "농어 팝니다",
-      "locationTime": "창원시 사림동 · 20분 전",
-      "price": "20,000원",
-      "imagePath": "assets/images/fish_image1.png",
-      "commentCount": 3,
-      "favoriteCount": 5,
-    },
-    {
-      "title": "갓한 감성동 팝니다",
-      "locationTime": "창원시 흥림동 · 1시간 전",
-      "price": "20,000원",
-      "imagePath": "assets/images/fish_image2.png",
-      "commentCount": 2,
-      "favoriteCount": 3,
-    },
-    {
-      "title": "갓한 감성동 팝니다",
-      "locationTime": "창원시 중앙동 · 1시간 전",
-      "price": "20,000원",
-      "imagePath": "assets/images/fish_image2.png",
-      "commentCount": 2,
-      "favoriteCount": 3,
-    },
-    {
-      "title": "소방어 팝니다",
-      "locationTime": "창원시 내동 · 8시간 전",
-      "price": "20,000원",
-      "imagePath": "assets/images/fish_image1.png",
-      "commentCount": 1,
-      "favoriteCount": 2,
-    },
-  ];
+  // 백엔드 API에서 받아온 게시글 리스트와 사용자의 지역 정보
+  List<dynamic> posts = [];
+  String userRegion = ""; // classify_address 반환값으로 채워짐
+
+  // status 값에 따른 색상 반환 함수
+  Color _statusColor(String? status) {
+    switch (status) {
+      case '예약중':
+        return const Color(0xFF4A68EA);
+      case '거래완료':
+        return Colors.black;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPostsByRegion();
+  }
+
+  Future<void> fetchPostsByRegion() async {
+    try {
+      final response = await dio.get("/api/posts_by_region");
+      if (response.statusCode == 200) {
+        setState(() {
+          // API가 반환한 JSON 객체의 형식:
+          // { "user_region": "xxx", "posts": [ ... ] }
+          userRegion = response.data["user_region"] ?? "";
+          posts = response.data["posts"] ?? [];
+        });
+      } else {
+        print("Error fetching posts: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("게시글 로드 실패: $e");
+    }
+  }
+
+  Widget buildPostImage(String imageUrl) {
+    // 기본 이미지 경로는 Flutter Asset 이미지로 처리
+    if (imageUrl == "assets/icons/fish_icon2.png") {
+      return Image.asset(
+        imageUrl,
+        height: 95,
+        width: 95,
+        fit: BoxFit.cover,
+      );
+    }
+    // imageUrl이 네트워크 URL이 아니면, 서버의 기본 URL을 추가합니다.
+    if (!imageUrl.startsWith("http")) {
+      imageUrl = "http://127.0.0.1:5000" + imageUrl;
+    }
+    return Image.network(
+      imageUrl,
+      height: 95,
+      width: 95,
+      fit: BoxFit.cover,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 스크린샷에 파란색 배경의 AppBar
+      // appBar 제목은 사용자의 region (API 반환값)을 사용
       appBar: AppBar(
+        centerTitle: true,
         elevation: 0,
-        backgroundColor: const Color(0xFF3F7EFF), // 필요 시 색상 코드 조정
-        title: Row(
-          children: [
-            const Text(
-              "Fish Go",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 5),
-            // 파란 배경에 어두운 아이콘 그대로 사용 (프로젝트에 맞춰 수정)
-            Image.asset('assets/icons/fish_icon1.png', height: 24),
-            const SizedBox(width: 10),
-            // 지역명 표시 (예: 창원시)
-            const Text(
-              "창원시",
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.white,
-              ),
-            ),
-          ],
+        backgroundColor: const Color(0xFF3F7EFF),
+        title: Text(
+          userRegion.isNotEmpty ? userRegion : "Loading...",
+          style: const TextStyle(fontSize: 18, color: Colors.white),
         ),
       ),
       body: Stack(
         children: [
-          // 글 목록
-          ListView.builder(
-            padding: const EdgeInsets.only(bottom: 60, top: 10),
-            itemCount: localPosts.length,
-            itemBuilder: (context, index) {
-              final post = localPosts[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                child: ListTile(
-                  leading: Image.asset(
-                    post["imagePath"] as String,
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                  ),
-                  title: Text(
-                    post["title"] as String,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    "${post["locationTime"]}\n${post["price"]}",
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.comment,
-                          size: 16, color: Colors.black54),
-                      const SizedBox(width: 4),
-                      Text("${post["commentCount"]}"),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.favorite,
-                          size: 16, color: Colors.black54),
-                      const SizedBox(width: 4),
-                      Text("${post["favoriteCount"]}"),
-                    ],
-                  ),
-                  onTap: () {
-                    // TODO: 글 상세 페이지 이동 로직
+          posts.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 60, top: 10),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    final post = posts[index];
+                    // 게시글 이미지: images 리스트가 있으면 첫 번째 이미지의 image_url, 없으면 기본 이미지 경로 사용
+                    String imageUrl = "assets/icons/fish_icon2.png";
+                    if (post["images"] != null &&
+                        post["images"] is List &&
+                        post["images"].isNotEmpty) {
+                      // 이미지 객체의 key는 image_url로 가정
+                      imageUrl = post["images"][0]["image_url"] ?? imageUrl;
+                    }
+                    return GestureDetector(
+                      onTap: () {
+                        // TODO: 글 상세 페이지 이동 로직
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 4, horizontal: 15),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.2),
+                              spreadRadius: 1,
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: buildPostImage(imageUrl),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 제목과 post_status 태그 Row
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          post["title"] ?? "제목 없음",
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14),
+                                        ),
+                                      ),
+                                      if (post["post_status"] != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _statusColor(
+                                                post["post_status"]),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            post["post_status"],
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // region_name 표시 (게시글의 지역명)
+                                  Text(
+                                    post["region_name"] ?? "",
+                                    style: const TextStyle(
+                                        color: Color(0xFF999999), fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // 가격 및 댓글/좋아요 정보
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "${post["price"]}원",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.comment,
+                                              size: 16,
+                                              color: Color(0xFF999999)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "${post["comment_count"]}",
+                                            style:
+                                                const TextStyle(fontSize: 12),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Icon(Icons.favorite,
+                                              size: 16,
+                                              color: Color(0xFF999999)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "${post["like_count"]}",
+                                            style:
+                                                const TextStyle(fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
                   },
                 ),
-              );
-            },
-          ),
-
-          // 하단 오른쪽 "글쓰기" 버튼 (스샷처럼 버튼 형태)
-          Positioned(
-            bottom: 10,
-            right: 15,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                elevation: 3,
-              ),
-              onPressed: () {
-                // TODO: 글쓰기 페이지 이동 로직
-              },
-              child: const Text("글쓰기"),
-            ),
-          ),
+          // 하단 오른쪽 "글쓰기" 버튼
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const WriteScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFFD9D9D9),
+        icon: Image.asset('assets/icons/pencil_icon.png', height: 24),
+        label: const Text("글쓰기", style: TextStyle(color: Colors.black)),
       ),
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,

@@ -28,10 +28,33 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
   int uid = 0;
   String user_id = '';
 
+  List myPosts = [];
+  bool isPostsLoading = true;
+
   @override
   void initState() {
     super.initState();
     fetchUserProfile();
+    fetchMyPosts();
+  }
+
+  // 내가 작성한 글을 불러오는 함수 (예: /api/my_posts 엔드포인트)
+  Future<void> fetchMyPosts() async {
+    try {
+      final response = await dio.get('/api/my_posts');
+      if (response.statusCode == 200) {
+        setState(() {
+          myPosts = response.data; // 엔드포인트 응답에 따라 List 형태로 가정
+          isPostsLoading = false;
+        });
+      } else {
+        setState(() => isPostsLoading = false);
+        print("내 글 불러오기 실패: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() => isPostsLoading = false);
+      print("내 글 불러오기 에러: $e");
+    }
   }
 
   Future<void> fetchUserProfile() async {
@@ -361,7 +384,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const TradeHistoryScreen()),
+                    builder: (context) => TradeHistoryScreen(initialTab: 1)),
               );
             },
           ),
@@ -373,7 +396,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const TradeHistoryScreen()),
+                    builder: (context) => TradeHistoryScreen(initialTab: 2)),
               );
             },
           ),
@@ -416,39 +439,117 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text("내가 작성한 글",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text("더보기 >", style: TextStyle(fontSize: 12, color: Colors.blue)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ListTile(
-            leading: Image.asset("assets/images/fish_image1.png",
-                width: 60, height: 60),
-            title: const Text("농어 팝니다",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            subtitle: const Text("포항시 이동 · 20분 전\n20,000원"),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.comment, size: 16, color: Colors.black54),
-                SizedBox(width: 4),
-                Text("3"),
-                SizedBox(width: 12),
-                Icon(Icons.favorite, size: 16, color: Colors.black54),
-                SizedBox(width: 4),
-                Text("3"),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: isPostsLoading
+          ? const Center(child: CircularProgressIndicator())
+          : myPosts.isEmpty
+              ? const SizedBox.shrink()
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "내가 작성한 글",
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    TradeHistoryScreen(initialTab: 0),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "더보기 >",
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: myPosts.length,
+                      itemBuilder: (context, index) {
+                        final post = myPosts[index];
+                        final title = post['title'] ?? "";
+                        final createdAt = post['created_at'] ?? "";
+                        final price = post['price']?.toString() ?? "";
+
+                        // image_url이 문자열인지 리스트인지 확인 후 처리
+                        final dynamic imageData = post['image_url'];
+                        String? imageUrlStr;
+                        if (imageData == null) {
+                          imageUrlStr = null;
+                        } else if (imageData is List && imageData.isNotEmpty) {
+                          // 리스트라면 첫번째 딕셔너리 또는 문자열의 "image_url" 값을 사용
+                          if (imageData[0] is Map &&
+                              imageData[0]['image_url'] != null) {
+                            imageUrlStr = imageData[0]['image_url'];
+                          } else if (imageData[0] is String) {
+                            imageUrlStr = imageData[0];
+                          }
+                        } else if (imageData is String) {
+                          imageUrlStr = imageData;
+                        }
+
+                        // 이미지 위젯 결정: 자산 이미지(asset)와 네트워크 이미지 구분
+                        Widget leadingWidget;
+                        if (imageUrlStr != null) {
+                          if (imageUrlStr.startsWith("assets/")) {
+                            // 자산(assets) 이미지인 경우
+                            leadingWidget = Image.asset(
+                              imageUrlStr,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            );
+                          } else if (imageUrlStr.startsWith('/')) {
+                            // 상대 경로면 네트워크 이미지로 처리 (기본적으로 127.0.0.1:5000 뒤에 붙임)
+                            final fullImageUrl =
+                                "http://127.0.0.1:5000$imageUrlStr";
+                            leadingWidget = Image.network(
+                              fullImageUrl,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            );
+                          } else {
+                            // 그 외 문자열이면 네트워크 이미지로 사용
+                            leadingWidget = Image.network(
+                              imageUrlStr,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                        } else {
+                          leadingWidget = const Icon(Icons.image, size: 60);
+                        }
+
+                        return ListTile(
+                          leading: leadingWidget,
+                          title: Text(
+                            title,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text("$createdAt\n가격: ${price}원"),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            // TODO: 상세 페이지 이동
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
     );
   }
 }

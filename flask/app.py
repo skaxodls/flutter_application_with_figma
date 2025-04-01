@@ -11,7 +11,8 @@ from werkzeug.security import check_password_hash
 import os
 import base64
 from flask_session import Session
-from datetime import timedelta
+from datetime import timedelta,datetime,timezone
+from address_classify import classify_address
 
 from model import detect_and_classify
 
@@ -43,6 +44,9 @@ db = SQLAlchemy(app)
 # 카카오 API 키 설정 (실제 API 키로 변경해야 함)
 KAKAO_REST_API_KEY = "d4c06433cf81d2ad087c6bd0381b36d7"
 KAKAO_JS_API_KEY = "be680803e7b04c426b6e4b1666b17e67"
+
+
+
 
 # ----------------------------
 # 1) region 테이블 모델
@@ -148,7 +152,7 @@ class Posts(db.Model):
             "comment_count": self.comment_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "post_status": self.post_status,
-            "fish_id": self.fish_id
+            "fish_id": self.fish_id,
             "price": self.price
         }
 
@@ -680,9 +684,313 @@ def get_all_posts():
     except Exception as e:
         return jsonify({'error': f'서버 오류: {str(e)}'}), 500
 
+
+# ──────────────────────────────
+# API 엔드포인트: 거래 데이터 목록 반환 (/api/trades)
+# ──────────────────────────────
+@app.route('/api/trades', methods=['GET'])
+def get_trades():
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({"error": "로그인이 필요합니다."}), 401
+
+    trades = Trade.query.filter(
+        (Trade.seller_uid == uid) | (Trade.buyer_uid == uid)
+    ).all()
+
+    result = []
+    for trade in trades:
+        post = Posts.query.get(trade.post_id)
+        region = Region.query.get(trade.region_id) if trade.region_id else None
+        buyer = Members.query.get(trade.buyer_uid) if trade.buyer_uid else None
+        seller = Members.query.get(trade.seller_uid) if trade.seller_uid else None
+
+        result.append({
+            "trade_id": trade.trade_id,
+            "post_id": trade.post_id,  # post_id 추가
+            "trade_date": trade.trade_date.strftime("%Y-%m-%d") if trade.trade_date else None,
+            "time": trade.trade_date.strftime("%H시 %M분") if trade.trade_date else "",
+            "address": (region.detailed_address if region and region.detailed_address 
+                        else (region.region_name if region else "")),
+            "title": post.title if post else "",
+            "price": post.price if post else None,
+            "post_status": post.post_status if post else "",
+            "seller_name": seller.username if seller else "",
+            "buyer_name": buyer.username if buyer else "",
+            "is_seller": trade.seller_uid == uid  # 판매자 여부
+        })
+    
+    return jsonify(result)
+
+
+# ──────────────────────────────
+# trade_calendar_screen.dart 구매확정 버튼 액션
+# ──────────────────────────────
+@app.route('/api/confirm_purchase', methods=['POST'])
+def confirm_purchase():
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({"error": "로그인이 필요합니다."}), 401
+
+    data = request.get_json()
+    post_id = data.get('post_id')
+    if post_id is None:
+        return jsonify({"error": "post_id가 필요합니다."}), 400
+
+    post = Posts.query.get(post_id)
+    if not post:
+        return jsonify({"error": "게시글이 존재하지 않습니다."}), 404
+
+    # 구매자임을 확인하는 추가 검증 로직을 넣을 수 있음
+
+    post.post_status = '거래완료'
+    db.session.commit()
+    return jsonify({"message": "구매확정이 완료되었습니다."})
+
+# ──────────────────────────────
+# 거래 삭제 API 엔드포인트 (/api/delete_trade)
+# ──────────────────────────────
+@app.route('/api/delete_trade', methods=['POST'])
+def delete_trade():
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({"error": "로그인이 필요합니다."}), 401
+
+    data = request.get_json()
+    trade_id = data.get('trade_id')
+    post_id = data.get('post_id')
+    
+    if trade_id is None or post_id is None:
+        return jsonify({"error": "trade_id와 post_id가 필요합니다."}), 400
+
+    trade = Trade.query.get(trade_id)
+    if not trade:
+        return jsonify({"error": "해당 거래가 존재하지 않습니다."}), 404
+
+    # post_id에 해당하는 게시글의 상태를 '판매중'으로 업데이트
+    post = Posts.query.get(post_id)
+    if post:
+        post.post_status = '판매중'
+    
+    # 거래 튜플 삭제
+    db.session.delete(trade)
+    db.session.commit()
+
+    return jsonify({"message": "거래가 삭제되었습니다."})
+
+@app.route('/api/trade_history', methods=['GET'])
+def get_trades_history():
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({"error": "로그인이 필요합니다."}), 401
+
+    # 현재 uid와 seller_uid 또는 buyer_uid가 일치하는 모든 거래 조회
+    trades = Trade.query.filter(
+        (Trade.seller_uid == uid) | (Trade.buyer_uid == uid)
+    ).all()
+
+    # 세 그룹으로 분리할 리스트 (판매중, 판매완료, 구매완료)
+    selling_items = []            # 판매중: seller이고, post_status가 '판매중' 또는 '예약중'
+    selling_completed_items = []  # 판매완료: seller이고, post_status가 '거래완료'
+    purchased_items = []          # 구매완료: buyer이고, post_status가 '거래완료'
+
+    for trade in trades:
+        post = Posts.query.get(trade.post_id)
+        if not post:
+            continue
+
+        # 이미지 조회: images 테이블에서 entity_type='post' 및 entity_id가 post.post_id와 일치하는 이미지 가져오기
+        image_obj = Images.query.filter_by(entity_type='post', entity_id=post.post_id).first()
+        image_url = image_obj.image_url if image_obj else None
+
+        post_data = {
+            "trade_id": trade.trade_id,
+            "trade_date": trade.trade_date.strftime("%Y-%m-%d %H:%M"),
+            "post_id": trade.post_id,
+            "title": post.title,
+            "price": post.price,
+            "post_status": post.post_status,
+            "seller_uid": trade.seller_uid,
+            "buyer_uid": trade.buyer_uid,
+            "image_url": image_url  # 이미지 URL 추가
+        }
+        
+
+        # 판매자인 경우
+        if trade.seller_uid == uid:
+            if post.post_status in ['판매중', '예약중']:
+                selling_items.append(post_data)
+            elif post.post_status == '거래완료':
+                selling_completed_items.append(post_data)
+
+        # 구매자인 경우 (post_status가 '거래완료'인 경우만 구매완료로 표시)
+        if trade.buyer_uid == uid and post.post_status == '거래완료':
+            purchased_items.append(post_data)
+
+    return jsonify({
+        "sellingItems": selling_items,               # 판매중 탭 데이터
+        "sellingCompletedItems": selling_completed_items,  # 판매완료 탭 데이터
+        "purchasedItems": purchased_items              # 구매완료 탭 데이터
+    })
+
+
+@app.route('/api/my_posts', methods=['GET'])
+def get_my_posts():
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({"error": "로그인이 필요합니다."}), 401
+
+    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    # 현재 uid의 사용자가 작성한 글 중 최근 1주일 이내에 작성된 글을 가져옵니다.
+    posts = Posts.query.filter(
+        Posts.uid == uid,
+        Posts.created_at >= one_week_ago
+    ).order_by(Posts.created_at.desc()).all()
+
+    result = []
+    for post in posts:
+        result.append({
+            "post_id": post.post_id,
+            "title": post.title,
+            "created_at": post.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "price": post.price,
+            # 이미지 URL은 이미지 테이블이나 별도의 로직을 통해 가져올 수 있습니다.
+            # 예시로 아래와 같이 post_id를 기준으로 이미지 URL을 조회하는 함수를 사용했다고 가정합니다.
+            "image_url": get_image_url_for_post(post.post_id)
+        })
+    return jsonify(result)
+
+
+#-----------------------------------------------------------
+#     지역별 게시글 조회 API
+#-----------------------------------------------------------
+# @app.route('/api/posts_by_region', methods=['GET'])
+# def posts_by_region():
+#     # 세션에 저장된 uid 확인
+#     if 'uid' not in session:
+#         return jsonify({"error": "User not logged in"}), 401
+
+#     user_uid = session.get('uid')
+#     # SQLAlchemy 2.0 방식 사용: db.session.get(Model, primary_key)
+#     member = db.session.get(Members, user_uid)
+#     if not member:
+#         return jsonify({"error": "Member not found"}), 404
+
+#     if not member.region_id:
+#         return jsonify({"error": "User region not set"}), 400
+
+#     # Members의 region_id를 이용해 Region 테이블에서 상세주소 조회
+#     user_region_obj = db.session.get(Region, member.region_id)
+#     if not user_region_obj or not user_region_obj.detailed_address:
+#         return jsonify({"error": "User region detail not found"}), 404
+
+#     # 사용자의 상세주소를 classify_address로 처리하여 region 문자열 도출
+#     user_region = classify_address(user_region_obj.detailed_address)
+#     if not user_region:
+#         return jsonify({"error": "Could not determine region from user's detail address"}), 400
+
+#     # Posts 테이블의 region_id와 Region 테이블을 join하여 각 게시글의 region 정보를 가져옴
+#     results = db.session.query(Posts, Region) \
+#         .join(Region, Posts.region_id == Region.region_id) \
+#         .all()
+
+#     filtered_posts = []
+#     for post, region in results:
+#         # 게시글의 region의 상세주소를 classify_address로 처리하여 region 문자열 도출
+#         post_region_str = classify_address(region.detailed_address)
+#         if post_region_str == user_region:
+#             post_data = post.to_json()
+#             # Region 테이블에서 해당 게시글의 region_name 추가
+#             post_data["region_name"] = region.region_name
+#             # Images 테이블에서 해당 게시글에 해당하는 이미지들 조회
+#             images = Images.query.filter_by(post_id=post.post_id).all()
+#             post_data["images"] = [img.to_json() for img in images]
+#             filtered_posts.append(post_data)
+
+#     return jsonify({
+#         "user_region": user_region,
+#         "posts": filtered_posts
+#     })
+@app.route('/api/posts_by_region', methods=['GET'])
+def posts_by_region():
+    # 세션에 저장된 uid 확인
+    if 'uid' not in session:
+        return jsonify({"error": "User not logged in"}), 401
+
+    user_uid = session.get('uid')
+    # SQLAlchemy 2.0 방식 사용: db.session.get(Model, primary_key)
+    member = db.session.get(Members, user_uid)
+    if not member:
+        return jsonify({"error": "Member not found"}), 404
+
+    if not member.region_id:
+        return jsonify({"error": "User region not set"}), 400
+
+    # 회원의 region_id를 이용해 Region 테이블에서 상세주소 조회
+    user_region_obj = db.session.get(Region, member.region_id)
+    if not user_region_obj or not user_region_obj.detailed_address:
+        return jsonify({"error": "User region detail not found"}), 404
+
+    # 사용자의 상세주소를 classify_address로 처리하여 region 문자열 도출
+    user_region = classify_address(user_region_obj.detailed_address)
+    print(user_region)
+    if not user_region:
+        return jsonify({"error": "Could not determine region from user's detail address"}), 400
+
+    # Posts 테이블은 region_id가 없으므로, 작성자(Members)와 Region을 join하여 가져옴
+    results = db.session.query(Posts, Members, Region) \
+        .join(Members, Posts.uid == Members.uid) \
+        .join(Region, Members.region_id == Region.region_id) \
+        .all()
+
+    filtered_posts = []
+    for post, post_member, post_region in results:
+        # 게시글 작성자의 Region의 상세주소를 classify_address로 처리하여 region 문자열 도출
+        post_region_str = classify_address(post_region.detailed_address)
+        if post_region_str == user_region:
+            post_data = post.to_json()
+            # Region 테이블의 region_name 추가
+            post_data["region_name"] = post_region.region_name
+            # Images 테이블에서 해당 게시글의 이미지들을 entity_type과 entity_id 조건으로 조회
+            images = db.session.query(Images).filter_by(entity_type='post', entity_id=post.post_id).all()
+            post_data["images"] = [img.to_json() for img in images]
+            filtered_posts.append(post_data)
+
+    return jsonify({
+        "user_region": user_region,
+        "posts": filtered_posts
+    })
+
 #---------------------------
 #함수
 #---------------------------
+
+def get_image_url_for_post(post_id):
+    """
+    낚시 로그 ID를 기반으로 이미지를 가져오고, 없으면 기본 자산 이미지를 반환한다.
+    """
+    images = Images.query.filter_by(entity_type='post', entity_id=post_id).all()
+    print(f"Found images: {images}")
+    
+    if images:  
+        # post와 연관된 이미지가 있는 경우
+        return [
+            {
+                "image_url": image.image_url,
+                "image_download_url": f"/api/images/{image.image_url}"
+            } for image in images
+        ]
+    
+    # 이미지가 없는 경우, 기본 자산 이미지 경로를 반환
+    default_asset_path = "assets/icons/fish_icon1.png"
+    return [
+        {
+            "image_url": default_asset_path,
+            "image_download_url": ""
+        }
+    ]
+
+
 
 
 

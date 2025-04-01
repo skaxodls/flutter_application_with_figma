@@ -17,6 +17,7 @@ class CommunityScreen extends StatefulWidget {
 
 class _CommunityScreenState extends State<CommunityScreen> {
   bool isLoggedIn = false;
+  int currentUserUid = -1;
   List<dynamic> posts = []; // 🔹 게시글 리스트
 
   @override
@@ -32,6 +33,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
       if (response.statusCode == 200 && response.data['logged_in'] == true) {
         setState(() {
           isLoggedIn = true;
+          currentUserUid = response.data['uid'];
         });
       }
     } catch (e) {
@@ -100,6 +102,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   likes: post['like_count'] ?? 0,
                   tag: post['status'],
                   tagColor: _statusColor(post['status']),
+                  username: post['username'] ?? '사용자',
+                  userRegion: post['location'] ?? '',
+                  postUid: post['uid'],
+                  currentUserUid: currentUserUid,
                 );
               },
             ),
@@ -184,6 +190,10 @@ class _CommunityPost extends StatelessWidget {
   final int likes;
   final String? tag;
   final Color? tagColor;
+  final String username;
+  final String userRegion;
+  final int postUid;
+  final int currentUserUid;
 
   const _CommunityPost({
     required this.image,
@@ -194,6 +204,10 @@ class _CommunityPost extends StatelessWidget {
     required this.likes,
     this.tag,
     this.tagColor,
+    required this.username,
+    required this.userRegion,
+    required this.postUid,
+    required this.currentUserUid,
     super.key,
   });
 
@@ -213,6 +227,10 @@ class _CommunityPost extends StatelessWidget {
               price: price,
               comments: comments,
               likes: likes,
+              username: username,
+              userRegion: userRegion,
+              postUid: postUid,
+              currentUserUid: currentUserUid,
             ),
           ),
         );
