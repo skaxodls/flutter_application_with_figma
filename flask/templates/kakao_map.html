@@ -3,58 +3,120 @@
 <head>
   <meta charset="UTF-8">
   <title>카카오 지도 검색</title>
-  <!-- ✅ 카카오 지도 JS SDK (WebView2에서 로드 가능) -->
+  <!-- 카카오 지도 JS SDK (WebView2에서 로드 가능) -->
   <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=be680803e7b04c426b6e4b1666b17e67&libraries=services,places"></script>
   <style>
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: sans-serif; }
+    /* 검색창 영역 */
     #searchContainer { display: flex; align-items: center; width: 100%; padding: 5px; box-sizing: border-box; border-bottom: 1px solid #ccc; }
     #searchBox { flex: 1; height: 40px; font-size: 14px; border: none; outline: none; padding: 0 8px; }
     #searchButton { height: 40px; margin-left: 8px; padding: 0 16px; font-size: 14px; cursor: pointer; }
-    #map { width: 500px; height: 400px; margin: 10px auto; }
+    /* 지도 영역 */
+    #map { width: 100%; height: 400px; margin: 10px auto; position: relative; }
+    /* 검색 결과 목록 */
     #resultList { width: 100%; height: calc(30vh - 40px); overflow-y: auto; margin: 10px auto; max-width: 500px; }
     .resultItem { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
     .resultItem:hover { background: #f2f2f2; }
+    /* Zoom Buttons */
+    #zoomButtons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      overflow: hidden;
+      z-index: 999;
+    }
+    #zoomButtons button { padding: 8px; border: none; background: none; cursor: pointer; }
+    /* Current Location Controls */
+    #currentLocationControls {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 1000;
+    }
+    #currentLocationControls button {
+      padding: 8px;
+      font-size: 14px;
+      border: none;
+      background: rgba(255,255,255,0.8);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    /* Center Icon Overlay */
+    #centerIcon {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 500;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
-  <!-- ✅ 검색창 -->
+  <!-- 검색창 -->
   <div id="searchContainer">
     <input type="text" id="searchBox" placeholder="주소나 장소를 검색하세요" onkeydown="if(event.key === 'Enter'){searchPlaces();}">
     <button id="searchButton" onclick="searchPlaces();">검색</button>
   </div>
   
-  <!-- ✅ 지도 표시 -->
+  <!-- 지도 표시 -->
   <div id="map"></div>
-
-  <!-- ✅ 검색 결과 목록 -->
+  <!-- 검색 결과 목록 -->
   <div id="resultList"></div>
 
   <script>
-    let map;             // 지도 객체
-    let ps;              // 장소 검색 객체 (Places)
-    let markers = [];    // 마커 리스트
+    let map, ps, markers = [];
+    let currentMarker = null;
 
-    // ✅ 지도 초기화
-    function initMap() {
-      const mapContainer = document.getElementById('map');
-      const mapOption = { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 3 };
-      map = new kakao.maps.Map(mapContainer, mapOption);
-      ps = new kakao.maps.services.Places(); // 장소 검색 객체 생성
-      console.log("✅ 지도 초기화 완료");
+    // 쿼리 파라미터 추출 함수
+    function getQueryParam(param) {
+      var params = new URLSearchParams(window.location.search);
+      return params.get(param);
     }
 
-    // ✅ 검색 실행 함수
+    function initMap() {
+      const mapContainer = document.getElementById('map');
+      // 기본 중심 좌표: 창원대학교
+      const mapOption = { center: new kakao.maps.LatLng(35.2456868, 128.69189572), level: 3 };
+      map = new kakao.maps.Map(mapContainer, mapOption);
+      ps = new kakao.maps.services.Places();
+      console.log("✅ 지도 초기화 완료");
+
+      // initialAddress 파라미터가 있으면 상세주소로 간주하여 geocode 후 지도 중심 이동
+      var initialAddress = getQueryParam('initialAddress');
+      if (initialAddress) {
+        var geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(initialAddress, function(result, status) {
+          if (status === kakao.maps.services.Status.OK) {
+            var coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+            map.setCenter(coords);
+            var marker = new kakao.maps.Marker({ map: map, position: coords });
+            console.log("Initial address loaded: " + initialAddress);
+          } else {
+            console.error("Address search failed for: " + initialAddress);
+          }
+        });
+      }
+
+      createZoomButtons();
+      createCurrentLocationControls();
+    }
+
     function searchPlaces() {
       const query = document.getElementById('searchBox').value.trim();
-      if (!query) {
-        alert('검색어를 입력하세요.');
-        return;
-      }
+      if (!query) { alert('검색어를 입력하세요.'); return; }
       console.log("🔍 검색어:", query);
       ps.keywordSearch(query, placesSearchCB);
     }
 
-    // ✅ 장소 검색 콜백 함수
     function placesSearchCB(data, status, pagination) {
       if (status === kakao.maps.services.Status.OK) {
         console.log("✅ 검색 결과:", data);
@@ -66,69 +128,149 @@
       }
     }
 
-    // ✅ 검색 결과 표시 함수
     function displayPlaces(places) {
       const resultList = document.getElementById('resultList');
       resultList.innerHTML = '';
       clearMarkers();
-
       for (let i = 0; i < places.length; i++) {
         const place = places[i];
         const itemEl = document.createElement('div');
         itemEl.className = 'resultItem';
-
-        // 데이터 속성 저장
         itemEl.dataset.placeName = place.place_name;
         itemEl.dataset.addressName = place.address_name;
         itemEl.dataset.roadAddressName = place.road_address_name;
         itemEl.dataset.x = place.x;
         itemEl.dataset.y = place.y;
-
-        // 화면 표시 내용
         const address = place.road_address_name || place.address_name;
         itemEl.innerHTML = `<b>${place.place_name}</b><br/>${address}`;
-
-        // ✅ 클릭 이벤트: 선택 시 지도 이동 및 Flutter 메시지 전송
         itemEl.onclick = function() {
           const name = this.dataset.placeName;
           const addr = this.dataset.roadAddressName || this.dataset.addressName;
           const x = this.dataset.x;
           const y = this.dataset.y;
-
-          // 지도 이동 + 마커 표시
           const latlng = new kakao.maps.LatLng(y, x);
           map.setCenter(latlng);
           console.log("📍 지도 중심 이동:", latlng);
-
-          const marker = new kakao.maps.Marker({ position: latlng });
+          var marker = new kakao.maps.Marker({ position: latlng });
           marker.setMap(map);
           markers.push(marker);
-
-          // ✅ 주소 객체 생성
           const addressObj = { addressName: name, detailedAddress: addr };
           console.log("📌 선택된 주소 객체:", addressObj);
-
-            // ✅ WebView2 환경 고려하여 메시지 전송 방식 변경
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify(addressObj));
-            } else if (window.FlutterChannel) {
-                window.FlutterChannel.postMessage(JSON.stringify(addressObj));
-            } else {
-                alert("✅ 선택된 주소: " + JSON.stringify(addressObj));
-            }
+          if (window.chrome && window.chrome.webview) {
+              window.chrome.webview.postMessage(JSON.stringify(addressObj));
+          } else if (window.FlutterChannel) {
+              window.FlutterChannel.postMessage(JSON.stringify(addressObj));
+          } else {
+              alert("✅ 선택된 주소: " + JSON.stringify(addressObj));
+          }
         };
-
         resultList.appendChild(itemEl);
       }
     }
 
-    // ✅ 마커 초기화 함수
     function clearMarkers() {
       markers.forEach(marker => marker.setMap(null));
       markers = [];
     }
 
-    // ✅ 페이지 로드 시 지도 초기화
+    // Zoom buttons (top-right)
+    function createZoomButtons() {
+      const mapContainer = document.getElementById('map');
+      const buttonContainer = document.createElement('div');
+      buttonContainer.id = 'zoomButtons';
+      buttonContainer.style.top = '10px';
+      buttonContainer.style.right = '10px';
+      buttonContainer.style.display = 'flex';
+      buttonContainer.style.flexDirection = 'column';
+      buttonContainer.style.background = 'rgba(255,255,255,0.8)';
+      buttonContainer.style.border = '1px solid #ccc';
+      buttonContainer.style.borderRadius = '4px';
+      buttonContainer.style.overflow = 'hidden';
+      buttonContainer.style.zIndex = '999';
+
+      const zoomInButton = document.createElement('button');
+      zoomInButton.innerText = '+';
+      zoomInButton.style.padding = '8px';
+      zoomInButton.style.border = 'none';
+      zoomInButton.style.background = 'none';
+      zoomInButton.style.cursor = 'pointer';
+      zoomInButton.addEventListener('click', function() {
+        let currentLevel = map.getLevel();
+        if (currentLevel > 1) {
+          map.setLevel(currentLevel - 1);
+        }
+      });
+
+      const zoomOutButton = document.createElement('button');
+      zoomOutButton.innerText = '-';
+      zoomOutButton.style.padding = '8px';
+      zoomOutButton.style.border = 'none';
+      zoomOutButton.style.background = 'none';
+      zoomOutButton.style.cursor = 'pointer';
+      zoomOutButton.addEventListener('click', function() {
+        let currentLevel = map.getLevel();
+        map.setLevel(currentLevel + 1);
+      });
+
+      buttonContainer.appendChild(zoomInButton);
+      buttonContainer.appendChild(zoomOutButton);
+      mapContainer.appendChild(buttonContainer);
+    }
+
+    // Current location controls (bottom-right)
+    function createCurrentLocationControls() {
+      const mapContainer = document.getElementById('map');
+      const controlContainer = document.createElement('div');
+      controlContainer.id = 'currentLocationControls';
+
+      // "현재 위치" 버튼: 지도 중앙에 고정된 오버레이 아이콘 생성
+      const currentLocButton = document.createElement('button');
+      currentLocButton.innerText = '현재 위치';
+      currentLocButton.addEventListener('click', function() {
+        if (!document.getElementById('centerIcon')) {
+          const centerIcon = document.createElement('img');
+          centerIcon.id = 'centerIcon';
+          centerIcon.src = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png';
+          centerIcon.style.width = '24px';
+          centerIcon.style.height = '35px';
+          document.getElementById('map').appendChild(centerIcon);
+        }
+      });
+
+      // "확인" 버튼: 지도 중앙 좌표를 reverse geocoding하여 주소 반환
+      const confirmButton = document.createElement('button');
+      confirmButton.innerText = '확인';
+      confirmButton.addEventListener('click', function() {
+        const center = map.getCenter();
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.coord2Address(center.getLng(), center.getLat(), function(result, status) {
+          if (status === kakao.maps.services.Status.OK) {
+            const address = result[0].address.address_name;
+            const addressObj = {
+              addressName: "포인트 위치",
+              detailedAddress: address
+            };
+            console.log("📌 현재 위치 선택:", addressObj);
+            if (window.chrome && window.chrome.webview) {
+              window.chrome.webview.postMessage(JSON.stringify(addressObj));
+            } else if (window.FlutterChannel) {
+              window.FlutterChannel.postMessage(JSON.stringify(addressObj));
+            } else {
+              alert("✅ 선택된 주소: " + JSON.stringify(addressObj));
+            }
+            const centerIcon = document.getElementById('centerIcon');
+            if (centerIcon) { centerIcon.remove(); }
+          } else {
+            alert("주소 변환에 실패했습니다.");
+          }
+        });
+      });
+
+      controlContainer.appendChild(currentLocButton);
+      controlContainer.appendChild(confirmButton);
+      mapContainer.appendChild(controlContainer);
+    }
+
     window.onload = function() {
       initMap();
     };

@@ -139,7 +139,7 @@ class Posts(db.Model):
     comment_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
     post_status = db.Column(ENUM('판매중', '예약중', '거래완료'), default='판매중')
-    fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
+    #fish_id = db.Column(db.Integer, db.ForeignKey('fish.fish_id', ondelete='CASCADE'), nullable=False)
     price = db.Column(db.Integer, nullable=False)
 
     def to_json(self):
@@ -152,7 +152,7 @@ class Posts(db.Model):
             "comment_count": self.comment_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "post_status": self.post_status,
-            "fish_id": self.fish_id,
+            #"fish_id": self.fish_id,
             "price": self.price
         }
 
@@ -864,53 +864,7 @@ def get_my_posts():
 #-----------------------------------------------------------
 #     지역별 게시글 조회 API
 #-----------------------------------------------------------
-# @app.route('/api/posts_by_region', methods=['GET'])
-# def posts_by_region():
-#     # 세션에 저장된 uid 확인
-#     if 'uid' not in session:
-#         return jsonify({"error": "User not logged in"}), 401
 
-#     user_uid = session.get('uid')
-#     # SQLAlchemy 2.0 방식 사용: db.session.get(Model, primary_key)
-#     member = db.session.get(Members, user_uid)
-#     if not member:
-#         return jsonify({"error": "Member not found"}), 404
-
-#     if not member.region_id:
-#         return jsonify({"error": "User region not set"}), 400
-
-#     # Members의 region_id를 이용해 Region 테이블에서 상세주소 조회
-#     user_region_obj = db.session.get(Region, member.region_id)
-#     if not user_region_obj or not user_region_obj.detailed_address:
-#         return jsonify({"error": "User region detail not found"}), 404
-
-#     # 사용자의 상세주소를 classify_address로 처리하여 region 문자열 도출
-#     user_region = classify_address(user_region_obj.detailed_address)
-#     if not user_region:
-#         return jsonify({"error": "Could not determine region from user's detail address"}), 400
-
-#     # Posts 테이블의 region_id와 Region 테이블을 join하여 각 게시글의 region 정보를 가져옴
-#     results = db.session.query(Posts, Region) \
-#         .join(Region, Posts.region_id == Region.region_id) \
-#         .all()
-
-#     filtered_posts = []
-#     for post, region in results:
-#         # 게시글의 region의 상세주소를 classify_address로 처리하여 region 문자열 도출
-#         post_region_str = classify_address(region.detailed_address)
-#         if post_region_str == user_region:
-#             post_data = post.to_json()
-#             # Region 테이블에서 해당 게시글의 region_name 추가
-#             post_data["region_name"] = region.region_name
-#             # Images 테이블에서 해당 게시글에 해당하는 이미지들 조회
-#             images = Images.query.filter_by(post_id=post.post_id).all()
-#             post_data["images"] = [img.to_json() for img in images]
-#             filtered_posts.append(post_data)
-
-#     return jsonify({
-#         "user_region": user_region,
-#         "posts": filtered_posts
-#     })
 @app.route('/api/posts_by_region', methods=['GET'])
 def posts_by_region():
     # 세션에 저장된 uid 확인
@@ -961,6 +915,108 @@ def posts_by_region():
         "posts": filtered_posts
     })
 
+
+@app.route('/api/fishing_points', methods=['GET'])
+def get_fishing_points():
+    # Flask 세션에서 int 타입으로 저장된 uid를 가져옴
+    uid = session.get('uid')
+    if uid is None:
+        return jsonify({'error': 'User not logged in'}), 401
+
+    # ORM 방식으로 PersonalFishingPoint와 Region을 join 하여 uid에 해당하는 데이터를 조회
+    results = db.session.query(PersonalFishingPoint, Region) \
+        .join(Region, PersonalFishingPoint.region_id == Region.region_id) \
+        .filter(PersonalFishingPoint.uid == uid) \
+        .all()
+
+    # 조회된 결과를 리스트 형태의 딕셔너리로 변환
+    points = []
+    for pf, region in results:
+        points.append({
+            'region_name': region.region_name,
+            'detailed_address': region.detailed_address
+        })
+
+    return jsonify(points)
+
+
+# personal_fishing_point 저장 API 엔드포인트
+@app.route('/api/personal_fishing_point', methods=['POST'])
+def create_personal_fishing_point():
+    data = request.json
+    # JSON 예시: {"region": "용지못 (경남 창원시 성산구 용지동 551-1)"}
+    region_full = data.get("region")
+    if not region_full:
+        return jsonify({"error": "region is required"}), 400
+
+    # region_full 문자열을 region_name과 detailed_address로 분리
+    if '(' in region_full and ')' in region_full:
+        try:
+            region_name = region_full.split('(')[0].strip()
+            detailed_address = region_full.split('(')[1].replace(')', '').strip()
+        except Exception:
+            region_name = region_full.strip()
+            detailed_address = ''
+    else:
+        region_name = region_full.strip()
+        detailed_address = ''
+
+    # 세션에서 uid 가져오기
+    uid = session.get("uid")
+    if uid is None:
+        return jsonify({"error": "User not logged in"}), 401
+
+    # region 정보 가져오기 또는 생성하기
+    region_id = get_or_create_region(region_name, detailed_address)
+
+    # personal_fishing_point에 새로운 행 삽입
+    new_point = PersonalFishingPoint(region_id=region_id, uid=uid)
+    db.session.add(new_point)
+    db.session.commit()
+
+    return jsonify({
+        "message": "personal_fishing_point created",
+        "fishing_point_id": new_point.fishing_point_id
+    }), 200
+    
+    
+
+@app.route('/api/personal_fishing_point', methods=['DELETE'])
+def delete_personal_fishing_point():
+    data = request.json
+    region_full = data.get("region")
+    if not region_full:
+        return jsonify({"error": "region is required"}), 400
+
+    # region_full 형식: "region_name (detailed_address)"
+    if '(' in region_full and ')' in region_full:
+        try:
+            region_name = region_full.split('(')[0].strip()
+            detailed_address = region_full.split('(')[1].replace(')', '').strip()
+        except Exception:
+            region_name = region_full.strip()
+            detailed_address = ''
+    else:
+        region_name = region_full.strip()
+        detailed_address = ''
+
+    uid = session.get("uid")
+    if uid is None:
+        return jsonify({"error": "User not logged in"}), 401
+
+    # region 테이블에서 해당 지역 조회
+    region = Region.query.filter_by(region_name=region_name, detailed_address=detailed_address).first()
+    if not region:
+        return jsonify({"error": "Region not found"}), 404
+
+    # uid와 region_id로 personal_fishing_point 조회
+    point = PersonalFishingPoint.query.filter_by(region_id=region.region_id, uid=uid).first()
+    if not point:
+        return jsonify({"error": "Personal fishing point not found"}), 404
+
+    db.session.delete(point)
+    db.session.commit()
+    return jsonify({"message": "Personal fishing point deleted"}), 200
 #---------------------------
 #함수
 #---------------------------
