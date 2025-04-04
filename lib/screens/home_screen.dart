@@ -8,6 +8,8 @@ import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
 import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
+import 'package:flutter_application_with_figma/screens/release_criteria_screen.dart';
+import 'package:flutter_application_with_figma/screens/closed_season_screen.dart';
 
 //import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
@@ -179,8 +181,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                   image: 'assets/icons/map_icon.png',
                                   label: "지도"),
                               _MenuItem(
-                                  image: 'assets/icons/no_fish.png',
-                                  label: "금어기"),
+                                image: 'assets/icons/no_fish.png',
+                                label: "금어기",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const ClosedSeasonScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
                               _MenuItem(
                                   image:
                                       'assets/icons/book_icon.png', // 도감 버튼 수정
@@ -203,8 +215,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                   image: 'assets/icons/news_icon.png',
                                   label: "뉴스"),
                               _MenuItem(
-                                  image: 'assets/icons/fish_icon4.png',
-                                  label: "방생기준"),
+                                image: 'assets/icons/fish_icon4.png',
+                                label: "방생기준",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const ReleaseCriteriaPage(),
+                                    ),
+                                  );
+                                },
+                              ),
                               _MenuItem(
                                   image: 'assets/icons/tac.png', label: "TAC"),
                             ],

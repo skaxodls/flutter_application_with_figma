@@ -71,51 +71,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/icons/fish_icon1.png
-    - assets/icons/fish_icon2.png
-    - assets/icons/book_icon.png
-    - assets/icons/contents_icon.png
-    - assets/icons/fish_icon3.png
-    - assets/icons/fish_icon4.png
-    - assets/icons/map_icon.png
-    - assets/icons/moon1.png
-    - assets/icons/news_icon.png
-    - assets/icons/no_fish.png
-    - assets/icons/tac.png
-    - assets/icons/vector_icon1.png
-    - assets/images/fish_image1.png
-    - assets/images/fish_image3.png
-    - assets/images/fish_image2.png
-    - assets/icons/favorate_icon.png
-    - assets/icons/typing_icon.png
-    - assets/icons/point.png
-    - assets/images/news_image.png
-    - assets/icons/pencil_icon.png
-    - assets/icons/profile_icon.png
-    - assets/icons/arrow_down_icon.png
-    - assets/images/fish_image4.png
-    - assets/icons/fish_icon5.png
-    - assets/icons/fish_icon6.png
-    - assets/icons/fish_icon7.png
-    - assets/icons/plus_icon.png
-    - assets/images/map_image.png
-    - assets/images/fish_image5.png
-    - assets/images/fish_image6.png
-    - assets/images/fish_image7.png
-    - assets/images/fish_image8.png
-    - assets/images/fish_image9.png
-    - assets/images/fish_image10.png
-    - assets/images/fish_image11.png
-    - assets/images/fish_image12.png
-    - assets/icons/small_stick_icon.png
-    - assets/images/goodExample.png
-    - assets/images/gamseongdom.jpg
-    - assets/images/jeomnongeo.jpg
-    - assets/images/nongeo.jpg
-    - assets/images/saenunchi.jpg
-    - assets/images/neobchinongeo.jpg
-
+    - assets/icons/
+    - assets/images/
     - assets/mypage_images/
+    - assets/fishes/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
