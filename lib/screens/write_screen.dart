@@ -76,7 +76,7 @@ class _WriteScreenState extends State<WriteScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('게시글이 수정되었습니다.')),
           );
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         } else {
           throw Exception('수정 실패');
         }
@@ -110,7 +110,7 @@ class _WriteScreenState extends State<WriteScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('게시글이 등록되었습니다.')),
           );
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         } else {
           throw Exception('작성 실패');
         }
@@ -133,7 +133,7 @@ class _WriteScreenState extends State<WriteScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, true),
         ),
         title: Text(
           isEditMode ? "게시글 수정" : "내 물고기 팔기",
