@@ -413,7 +413,7 @@ def add_caught_fish():
     db.session.add(caught_fish)
     db.session.commit()
 
-    return jsonify({"message": "잡은 물고기 등록 완료"}), 200
+    return jsonify({"message": "물고기 등록 완료"}), 200
 
 
 @app.route('/api/fish_regions', methods=['GET'])
@@ -579,10 +579,10 @@ def get_fishing_logs():
 
 # ✅ 영어 이름과 fish_id 매핑
 fish_id_mapping = {
-    "gamseongdom": 1,
-    "jeomnongeo": 2,
-    "neobchinongeo": 3,
-    "nongeo": 4,
+    "gamseongdom": 4,
+    "jeomnongeo": 3,
+    "neobchinongeo": 1,
+    "nongeo": 2,
     "saenunchi": 5
 }
 
@@ -1354,6 +1354,53 @@ def get_tide_info():
     tide_info = f"{today.strftime('%m.%d')}(음 {lunar_month:02d}.{lunar_day:02d}) {tide_name}"
 
     return jsonify({"tide_info": tide_info})
+
+#로그인된 마이페이지에서 내가 작성한 글에서 바로 게시글로 가는 api
+@app.route('/api/posts/<int:post_id>', methods=['GET'])
+def get_post_detail(post_id):
+    try:
+        post = Posts.query.get(post_id)
+        if not post:
+            return jsonify({'error': '게시글을 찾을 수 없습니다.'}), 404
+
+        user = Members.query.get(post.uid)
+        region = Region.query.get(user.region_id) if user and user.region_id else None
+
+        image = Images.query.filter_by(entity_type='post', entity_id=post.post_id).first()
+        image_url = image.image_url if image else ""
+
+        # status에 따른 tagColor 설정 (Flutter _statusColor와 동일한 기준)
+        status = post.post_status
+        if status == '예약중':
+            tagColor = "#4A68EA"
+        elif status == '거래완료':
+            tagColor = "#000000"
+        else:
+            tagColor = "#808080"  # 기본 회색
+
+        current_user_uid = session.get('uid')
+
+        result = {
+            'post_id': post.post_id,
+            'title': post.title,
+            'content': post.content,
+            'uid': post.uid,
+            'username': user.username if user else "Unknown",
+            'location': region.region_name if region else "",
+            'created_at': post.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': status,
+            'like_count': 0,  # like는 0으로 고정
+            'comment_count': post.comment_count,
+            'price': post.price,
+            'image_url': image_url,
+            'tagColor': tagColor,
+            'currentUserUid': current_user_uid,
+            'userRegion': region.region_name if region else ""
+        }
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': f'서버 오류: {str(e)}'}), 500
+
 
 #---------------------------
 #함수

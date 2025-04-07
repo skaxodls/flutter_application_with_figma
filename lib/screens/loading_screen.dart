@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter_application_with_figma/dio_setup.dart';
 import 'fish_detail_screen.dart';
 import 'select_photo_screen.dart';
+import 'package:dio/dio.dart';
 
 class LoadingScreen extends StatefulWidget {
   final File selectedImage;
@@ -28,19 +29,17 @@ class _LoadingScreenState extends State<LoadingScreen> {
     _classifyFish(); // ✅ 물고기 분류 진행
   }
 
-  // ✅ 서버에 이미지 업로드 후 예측 결과 받아오기
+  // ✅ 서버에 이미지 업로드 후 예측 결과 받아오기 (Dio 사용)
   Future<void> _classifyFish() async {
-    final url = Uri.parse("http://127.0.0.1:5000/predict"); // Flask API 주소
-    var request = http.MultipartRequest('POST', url);
-    request.files.add(
-        await http.MultipartFile.fromPath('image', widget.selectedImage.path));
+    final String url = '/predict'; // baseUrl과 결합되어 요청됨
+    FormData formData = FormData.fromMap({
+      'image': await MultipartFile.fromFile(widget.selectedImage.path),
+    });
 
     try {
-      var response = await request.send();
+      Response response = await dio.post(url, data: formData);
       if (response.statusCode == 200) {
-        var responseData = await response.stream.bytesToString();
-        var jsonResponse = jsonDecode(responseData);
-
+        var jsonResponse = response.data;
         // ✅ API 응답 JSON 터미널 출력 (가독성을 위해 포맷팅)
         print("🔹 서버 응답 JSON:\n${jsonEncode(jsonResponse)}");
 
@@ -52,7 +51,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
         morphologicalInfo = jsonResponse['morphological_info'] ?? "정보 없음";
         taxonomy = jsonResponse['taxonomy'] ?? "정보 없음";
 
-        // ✅ 팝업 창 띄우기
+        // ✅ 예측 결과 팝업 창 띄우기
         _showPredictionDialog();
       } else {
         _showError("서버 오류: ${response.statusCode}");
@@ -60,6 +59,62 @@ class _LoadingScreenState extends State<LoadingScreen> {
     } catch (e) {
       _showError("서버 요청 실패: $e");
     }
+  }
+
+  // ✅ 잡은 물고기 추가 함수
+  Future<void> _insertCaughtFish(int fishId) async {
+    try {
+      final response = await dio.post(
+        '/api/caught_fish',
+        data: {
+          "fish_id": fishId,
+          "registered": true,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ 잡은 물고기 테이블에 추가 성공!");
+      } else {
+        print("❌ 잡은 물고기 테이블 추가 실패: ${response.data}");
+      }
+    } catch (e) {
+      print("❌ 오류 발생: $e");
+    }
+  }
+
+  // ✅ "맞아요" 버튼 눌렀을 때: 잡은 물고기 테이블에 추가 후 상세 화면으로 이동
+  Future<void> _handleFishConfirmation() async {
+    Navigator.pop(context); // 팝업 닫기
+    await _insertCaughtFish(fishId);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FishDetailScreen(
+          fishNumber: fishId,
+          fishName: fishName,
+          scientificName: scientificName,
+          morphologicalInfo: morphologicalInfo,
+          taxonomy: taxonomy,
+        ),
+      ),
+    );
+  }
+
+  // ✅ "모르겠어요" 또는 다른 버튼 동작: 단순 상세 화면으로 이동
+  void _navigateToDetailScreen() {
+    Navigator.pop(context); // 팝업 닫기
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FishDetailScreen(
+          fishNumber: fishId,
+          fishName: fishName,
+          scientificName: scientificName,
+          morphologicalInfo: morphologicalInfo,
+          taxonomy: taxonomy,
+        ),
+      ),
+    );
   }
 
   void _navigateToSelectImageScreen() {
@@ -74,7 +129,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
   void _showPredictionDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: false, // 사용자가 팝업 밖을 눌러 닫지 못하게 함
       builder: (context) {
         return AlertDialog(
           title: const Text("예측 결과"),
@@ -83,19 +138,24 @@ class _LoadingScreenState extends State<LoadingScreen> {
             children: [
               Image.file(widget.selectedImage, height: 150),
               const SizedBox(height: 10),
-              Text("물고기명: $fishName",
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-              Text("학술명: $scientificName",
-                  style: const TextStyle(fontSize: 14, color: Colors.grey)),
-              Text("예측 확률: ${(confidence).toStringAsFixed(2)}%",
-                  style: const TextStyle(fontSize: 14)),
+              Text(
+                "물고기명: $fishName",
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                "학술명: $scientificName",
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              Text(
+                "예측 확률: ${(confidence).toStringAsFixed(2)}%",
+                style: const TextStyle(fontSize: 14),
+              ),
             ],
           ),
           contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
           actionsPadding: EdgeInsets.zero,
           actions: [
-            // 버튼들을 감싸는 Container (팝업창과 버튼 사이 여백 조절)
             Container(
               width: double.infinity,
               margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -103,7 +163,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // "모르겠어요" 버튼 (이제 "맞아요"와 동일한 동작 수행)
+                  // "모르겠어요" 버튼 (단순 상세 화면 이동)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromARGB(255, 122, 127, 131),
@@ -112,14 +172,14 @@ class _LoadingScreenState extends State<LoadingScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: _navigateToDetailScreen, // ✅ "맞아요"와 동일하게 변경
+                    onPressed: _navigateToDetailScreen,
                     child: const Text("모르겠어요"),
                   ),
                   const SizedBox(height: 8),
-                  // "맞아요"와 "아니에요" 버튼 (기존과 동일)
+                  // "맞아요"와 "아니에요" 버튼
                   Row(
                     children: [
-                      // "맞아요" 버튼
+                      // "맞아요" 버튼: 잡은 물고기 추가 후 상세 화면 이동
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -130,12 +190,12 @@ class _LoadingScreenState extends State<LoadingScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: _navigateToDetailScreen,
+                          onPressed: _handleFishConfirmation,
                           child: const Text("맞아요"),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // "아니에요" 버튼 (이제 기존 "모르겠어요" 동작 수행)
+                      // "아니에요" 버튼: 이미지 다시 선택 화면으로 이동
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -145,8 +205,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed:
-                              _navigateToSelectImageScreen, // ✅ 기존 "모르겠어요" 동작 수행
+                          onPressed: _navigateToSelectImageScreen,
                           child: const Text("아니에요"),
                         ),
                       ),
@@ -158,23 +217,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
           ],
         );
       },
-    );
-  }
-
-  // ✅ `FishDetailScreen`으로 이동
-  void _navigateToDetailScreen() {
-    Navigator.pop(context); // 팝업 닫기
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => FishDetailScreen(
-          fishNumber: fishId,
-          fishName: fishName,
-          scientificName: scientificName,
-          morphologicalInfo: morphologicalInfo,
-          taxonomy: taxonomy,
-        ),
-      ),
     );
   }
 
