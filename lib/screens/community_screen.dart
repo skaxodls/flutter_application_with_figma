@@ -19,6 +19,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   bool isLoggedIn = false;
   int currentUserUid = -1;
   List<dynamic> posts = []; // 🔹 게시글 리스트
+  bool showOnlySelling = false; // 🔸 판매중만 보기 스위치 상태
 
   @override
   void initState() {
@@ -67,6 +68,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredPosts = showOnlySelling
+        ? posts.where((post) => post['status'] == '판매중').toList()
+        : posts;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
@@ -87,28 +92,66 @@ class _CommunityScreenState extends State<CommunityScreen> {
           ],
         ),
       ),
-      body: posts.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                return _CommunityPost(
-                  image: post['image'] ?? 'assets/images/fish_image1.png',
-                  title: post['title'] ?? '제목 없음',
-                  location: post['location'] ?? '위치 없음',
-                  price: post['price'] ?? 0,
-                  comments: post['comment_count'] ?? 0,
-                  likes: post['like_count'] ?? 0,
-                  tag: post['status'],
-                  tagColor: _statusColor(post['status']),
-                  username: post['username'] ?? '사용자',
-                  userRegion: post['location'] ?? '',
-                  postUid: post['uid'],
-                  currentUserUid: currentUserUid,
-                );
-              },
+      body: Column(
+        children: [
+          // 🔸 Switch UI
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Switch(
+                  value: showOnlySelling,
+                  onChanged: (value) {
+                    setState(() {
+                      showOnlySelling = value;
+                    });
+                  },
+                ),
+                const Text(
+                  '판매중만 보기',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
             ),
+          ),
+
+          // 🔸 게시글 리스트
+          Expanded(
+            child: filteredPosts.isEmpty
+                ? const Center(child: Text('게시글이 없습니다.'))
+                : ListView.builder(
+                    itemCount: filteredPosts.length,
+                    itemBuilder: (context, index) {
+                      final post = filteredPosts[index];
+                      final imageUrl = post['image_url'] ?? '';
+                      final hasImage = imageUrl.isNotEmpty &&
+                          (imageUrl.startsWith('/static') ||
+                              imageUrl.startsWith('http'));
+
+                      return _CommunityPost(
+                        image:
+                            hasImage ? imageUrl : 'assets/images/noimage.png',
+                        title: post['title'] ?? '제목 없음',
+                        location: post['location'] ?? '위치 없음',
+                        price: post['price'] ?? 0,
+                        comments: post['comment_count'] ?? 0,
+                        likes: post['like_count'] ?? 0,
+                        tag: post['status'],
+                        tagColor: _statusColor(post['status']),
+                        username: post['username'] ?? '사용자',
+                        userRegion: post['location'] ?? '',
+                        postId: post['post_id'],
+                        postUid: post['uid'],
+                        currentUserUid: currentUserUid,
+                        createdAt: post['created_at'] ?? '',
+                        content: post['content'] ?? '',
+                        status: post['status'] ?? '',
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (isLoggedIn) {
@@ -192,8 +235,12 @@ class _CommunityPost extends StatelessWidget {
   final Color? tagColor;
   final String username;
   final String userRegion;
+  final int postId;
   final int postUid;
   final int currentUserUid;
+  final String createdAt;
+  final String content;
+  final String status;
 
   const _CommunityPost({
     required this.image,
@@ -206,10 +253,31 @@ class _CommunityPost extends StatelessWidget {
     this.tagColor,
     required this.username,
     required this.userRegion,
+    required this.postId,
     required this.postUid,
     required this.currentUserUid,
+    required this.createdAt,
+    required this.content,
+    required this.status,
     super.key,
   });
+
+  String getTimeAgo(String createdAt) {
+    final created = DateTime.tryParse(createdAt);
+    if (created == null) return '';
+    final now = DateTime.now();
+    final difference = now.difference(created);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}일 전';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}시간 전';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}분 전';
+    } else {
+      return '방금 전';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -227,10 +295,15 @@ class _CommunityPost extends StatelessWidget {
               price: price,
               comments: comments,
               likes: likes,
+              tagColor: tagColor,
               username: username,
               userRegion: userRegion,
+              postId: postId,
               postUid: postUid,
               currentUserUid: currentUserUid,
+              createdAt: createdAt,
+              content: content,
+              status: status,
             ),
           ),
         );
@@ -255,8 +328,38 @@ class _CommunityPost extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child:
-                  Image.asset(image, height: 95, width: 95, fit: BoxFit.cover),
+              child: image.startsWith('/static') || image.startsWith('http')
+                  ? Image.network(
+                      'http://127.0.0.1:5000$image', // ← 서버 주소 추가
+                      // 'http://10.0.2.2:5000$image',
+                      // 'http://192.168.0.102:5000$image',
+                      height: 95,
+                      width: 95,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+
+                        return const SizedBox(
+                          width: 95,
+                          height: 95,
+                          child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox(
+                          width: 95,
+                          height: 95,
+                          child: Icon(Icons.broken_image, size: 40),
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      image.isNotEmpty ? image : 'assets/images/noimage.png',
+                      height: 95,
+                      width: 95,
+                      fit: BoxFit.cover,
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -300,6 +403,12 @@ class _CommunityPost extends StatelessWidget {
                         location,
                         style: const TextStyle(
                             color: Color(0xFF999999), fontSize: 12),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        getTimeAgo(createdAt),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 11),
                       ),
                     ],
                   ),
