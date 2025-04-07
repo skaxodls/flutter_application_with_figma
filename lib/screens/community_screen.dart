@@ -153,12 +153,17 @@ class _CommunityScreenState extends State<CommunityScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
+        onPressed: () async {
           if (isLoggedIn) {
-            Navigator.push(
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const WriteScreen()),
             );
+
+            // 글 작성 후 돌아왔을 때 새로고침
+            if (result == true) {
+              fetchPosts(); // 글 목록 다시 불러오기
+            }
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text("로그인이 필요합니다.")),
