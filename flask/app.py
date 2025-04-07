@@ -13,6 +13,9 @@ import base64
 from flask_session import Session
 from datetime import timedelta,datetime,timezone
 from address_classify import classify_address
+import requests
+from korean_lunar_calendar import KoreanLunarCalendar
+from lunardate import LunarDate
 
 from model import detect_and_classify
 
@@ -45,7 +48,8 @@ db = SQLAlchemy(app)
 KAKAO_REST_API_KEY = "d4c06433cf81d2ad087c6bd0381b36d7"
 KAKAO_JS_API_KEY = "be680803e7b04c426b6e4b1666b17e67"
 
-
+# 바다누리 해양정보 서비스 api
+SERVICE_KEY = "aPF2881AgVymH7f4Hy61Bg=="
 
 
 # ----------------------------
@@ -1017,6 +1021,102 @@ def delete_personal_fishing_point():
     db.session.delete(point)
     db.session.commit()
     return jsonify({"message": "Personal fishing point deleted"}), 200
+
+
+
+# 음력 1일 ~ 30일에 따른 물때식 매핑 (첨부해주신 표를 반영)
+TIDE_MAP = {
+    1: "턱사리", 2: "한사리", 3: "목사리", 4: "어깨사리", 5: "허리사리",
+    6: "한꺽기", 7: "두꺽기", 8: "선조금", 9: "앉은조금", 10: "한조금",
+    11: "한매", 12: "두매", 13: "무릅사리", 14: "배꼼사리", 15: "가슴사리",
+    16: "턱사리", 17: "한사리", 18: "목사리", 19: "어깨사리", 20: "허리사리",
+    21: "한꺽기", 22: "두꺽기", 23: "선조금", 24: "앉은조금", 25: "한조금",
+    26: "한매", 27: "두매", 28: "무릅사리", 29: "배꼽사리", 30: "가슴사리",
+}
+
+
+@app.route('/api/tide_combined', methods=['GET'])
+def get_tide_combined():
+    obs_code = request.args.get('obsCode', 'DT_0001')
+    date = request.args.get('date')
+    if not date:
+        date = datetime.now().strftime('%Y%m%d')
+    
+    url_past = (
+        "http://www.khoa.go.kr/api/oceangrid/tideObsPreTab/search.do"
+        f"?ServiceKey={SERVICE_KEY}"
+        f"&ObsCode={obs_code}"
+        f"&Date={date}"
+        "&ResultType=json"
+    )
+    
+    url_recent = (
+        "http://www.khoa.go.kr/api/oceangrid/tideObsRecent/search.do"
+        f"?ServiceKey={SERVICE_KEY}"
+        f"&ObsCode={obs_code}"
+        "&ResultType=json"
+    )
+    
+    try:
+        resp_past = requests.get(url_past)
+        resp_past.raise_for_status()
+        data_past = resp_past.json()
+        
+        resp_recent = requests.get(url_recent)
+        resp_recent.raise_for_status()
+        data_recent = resp_recent.json()
+        
+        # 음력 날짜 계산 (한국 음력)
+        today = datetime.now()
+        calendar = KoreanLunarCalendar()
+        calendar.setSolarDate(today.year, today.month, today.day)
+        lunar_year = calendar.lunarYear
+        lunar_month = calendar.lunarMonth
+        lunar_day = calendar.lunarDay
+        
+        # 음력 1~30 범위 보정 (음력은 보통 1~30일)
+        if lunar_day < 1:
+            lunar_day = 1
+        elif lunar_day > 30:
+            lunar_day = 30
+        
+        # 음력 일자에 따른 물때식 결정 (첨부해주신 표를 사용)
+        tide_info = TIDE_MAP.get(lunar_day, "정보 없음")
+        
+        combined = {
+            "past": data_past,
+            "recent": data_recent,
+            "lunar_info": {
+                "lunar_year": lunar_year,
+                "lunar_month": lunar_month,
+                "lunar_day": lunar_day,
+                "tide_info": tide_info
+            }
+        }
+        print(f"Combined data: {combined}")
+        return jsonify(combined)
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@app.route('/api/tide-info', methods=['GET'])
+def get_tide_info():
+    today = datetime.now()
+
+    # 음력으로 변환 (lunardate 사용)
+    lunar_today = LunarDate.fromSolarDate(today.year, today.month, today.day)
+
+    lunar_month = lunar_today.month
+    lunar_day = lunar_today.day
+
+    tide_name = TIDE_MAP.get(lunar_day, "알 수 없음")
+
+    # 응답 데이터 구성
+    tide_info = f"{today.strftime('%m.%d')}(음 {lunar_month:02d}.{lunar_day:02d}) {tide_name}"
+
+    return jsonify({"tide_info": tide_info})
+
 #---------------------------
 #함수
 #---------------------------

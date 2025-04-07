@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/screens/weather_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 //screens
 import 'package:flutter_application_with_figma/screens/community_screen.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
 import 'package:flutter_application_with_figma/screens/release_criteria_screen.dart';
 import 'package:flutter_application_with_figma/screens/closed_season_screen.dart';
+import 'package:flutter_application_with_figma/screens/weather_screen.dart';
 
 //import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
@@ -25,11 +27,32 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String serverStatus = "Flask 연결 확인 중..."; // 🔧 서버 연결 상태 저장 변수 추가
   bool isLoggedIn = false;
+  String tideInfo = "물때 정보를 가져오는 중..."; // 물때 정보 초기값
 
   @override
   void initState() {
     super.initState();
     checkSession();
+    fetchTideInfo();
+  }
+
+  Future<void> fetchTideInfo() async {
+    try {
+      final response = await dio.get('/api/tide-info'); // Flask API 호출
+      if (response.statusCode == 200) {
+        setState(() {
+          tideInfo = response.data['tide_info']; // Flask에서 JSON 형태로 보내준다고 가정
+        });
+      } else {
+        setState(() {
+          tideInfo = "물때 정보를 가져올 수 없습니다.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        tideInfo = "물때 정보를 가져오는 중 오류 발생";
+      });
+    }
   }
 
   // ✅ Flask의 `/api/session` 엔드포인트 호출
@@ -103,55 +126,78 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   // 🔵 검색 바 + 물때 정보
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    color: const Color(0xFF4A68EA), // 진한 파랑색
-                    child: Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: "지역을 검색하세요",
-                              border: InputBorder.none,
-                              prefixIcon: const Icon(Icons.search,
-                                  color: Colors.black54),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                  GestureDetector(
+                    onTap: () {
+                      // 전체 영역 클릭 시 날씨 페이지로 이동
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const WeatherScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      color: const Color(0xFF4A68EA), // 진한 파랑색
+                      child: Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: TextField(
+                              readOnly: true, // 입력 불가로 설정하여 키보드가 뜨지 않도록 함
+                              onTap: () {
+                                // 검색바 클릭 시에도 날씨 페이지로 이동
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const WeatherScreen()),
+                                );
+                              },
+                              decoration: InputDecoration(
+                                hintText: "지역을 검색하세요",
+                                border: InputBorder.none,
+                                prefixIcon: const Icon(Icons.search,
+                                    color: Colors.black54),
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        // 🌙 물때 정보
-                        const Text(
-                          "오늘의 물때를 확인하세요!",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        // 날짜 & 물때 정보 + moon1 이미지 배치
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              "02.10(음 01.13) 5물 (서해 4물)",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 12),
+                          const SizedBox(height: 10),
+                          // 🌙 물때 정보 문구
+                          const Text(
+                            "오늘의 물때를 확인하세요!",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(width: 6),
-                            Image.asset('assets/icons/moon1.png',
-                                height: 16), // 물때 아이콘
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 4),
+                          // 날짜 & 물때 정보 + moon1 이미지 배치
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                tideInfo, // 변수 사용
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                              ),
+                              const SizedBox(width: 6),
+                              Image.asset(
+                                'assets/icons/moon1.png',
+                                height: 16,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+
                   // 🟩 아이콘 메뉴 그리드
                   Container(
                     width: double.infinity, // 좌우 고정
@@ -179,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               _MenuItem(
                                   image: 'assets/icons/map_icon.png',
-                                  label: "지도"),
+                                  label: "서식지"),
                               _MenuItem(
                                 image: 'assets/icons/no_fish.png',
                                 label: "금어기",
