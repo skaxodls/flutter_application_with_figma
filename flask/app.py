@@ -659,6 +659,66 @@ def get_market_prices():
 #     커뮤니티 API
 #-----------------------------------------------------------
 
+@app.route('/api/posts', methods=['POST'])
+def create_post():
+    if 'uid' not in session:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    uid = session['uid']
+    title = request.form.get('title')
+    content = request.form.get('content')
+    price = int(request.form.get('price', 0))
+    status = request.form.get('status', '판매중')
+    image_file = request.files.get('images')  # ✅ 없어도 괜찮음
+
+    if not title or not content:
+        return jsonify({'error': '제목과 내용을 입력해주세요.'}), 400
+
+    try:
+        # 1. 게시글 생성
+        new_post = Posts(
+            uid=uid,
+            title=title,
+            content=content,
+            price=price,
+            post_status=status,
+            like_count=0,
+            comment_count=0
+        )
+        db.session.add(new_post)
+        db.session.commit()
+
+        # 2. 이미지 저장 (선택)
+        image_url = ""
+        if image_file:
+            filename = secure_filename(image_file.filename)
+           
+            image_path = os.path.join('static', 'images', filename)
+            image_file.save(image_path)
+
+            image_url = f'/static/images/{filename}'
+
+            new_image = Images(
+                image_url=image_url,
+                entity_type='post',
+                entity_id=new_post.post_id
+            )
+            db.session.add(new_image)
+            db.session.commit()
+
+        return jsonify({
+            'message': '게시글 등록 완료',
+            'post_id': new_post.post_id,
+            'image_url': image_url  # "" 일 수도 있음
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'게시글 작성 중 오류: {str(e)}'}), 500
+
+
+
+
 @app.route('/api/posts', methods=['GET'])
 def get_all_posts():
     try:
@@ -668,6 +728,9 @@ def get_all_posts():
         for post in posts:
             user = Members.query.get(post.uid)
             region = Region.query.get(user.region_id) if user and user.region_id else None
+
+            image = Images.query.filter_by(entity_type='post', entity_id=post.post_id).first()
+            image_url = image.image_url if image else ""
 
             post_list.append({
                 'post_id': post.post_id,
@@ -680,13 +743,185 @@ def get_all_posts():
                 'status': post.post_status,
                 'like_count': post.like_count,
                 'comment_count': post.comment_count,
-                'price': post.price
+                'price': post.price,
+                'image_url': image_url
             })
 
         return jsonify(post_list), 200
 
     except Exception as e:
         return jsonify({'error': f'서버 오류: {str(e)}'}), 500
+
+# 게시글 수정
+@app.route('/api/posts/<int:post_id>', methods=['PUT'])
+def update_post(post_id):
+    if 'uid' not in session:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    uid = session['uid']
+    data = request.get_json()
+
+    title = data.get('title')
+    content = data.get('content')
+    price = data.get('price')
+    status = data.get('status')
+    image_file = request.files.get('images')
+
+    post = Posts.query.get(post_id)
+    if not post:
+        return jsonify({'error': '게시글이 존재하지 않습니다.'}), 404
+
+    if post.uid != uid:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+
+    try:
+        post.title = title
+        post.content = content
+        post.price = price
+        post.post_status = status
+        db.session.commit()
+
+        if image_file:
+            filename = secure_filename(image_file.filename)
+            image_bytes = image_file.read()
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+            # 기존 이미지 삭제는 선택적으로 구현할 수 있음
+            image_url = save_image_and_insert_table(
+                base64_image=base64_image,
+                filename=filename,
+                entity_type='post',
+                entity_id=post.post_id
+            )
+
+        return jsonify({'message': '게시글 수정 완료'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'수정 중 오류 발생: {str(e)}'}), 500
+
+#게시글 삭제
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
+    if 'uid' not in session:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    uid = session['uid']
+    post = Posts.query.get(post_id)
+
+    if not post:
+        return jsonify({'error': '게시글이 존재하지 않습니다.'}), 404
+
+    if post.uid != uid:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+
+    try:
+        # 1. 이미지 먼저 삭제
+        Images.query.filter_by(entity_type='post', entity_id=post_id).delete()
+
+        # 2. 댓글도 삭제
+        Comments.query.filter_by(post_id=post_id).delete()
+
+        # 3. 게시글 삭제
+        db.session.delete(post)
+        db.session.commit()
+        return jsonify({'message': '게시글 삭제 완료'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'삭제 중 오류 발생: {str(e)}'}), 500
+
+# 댓글
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_comments(post_id):
+    try:
+        comments = Comments.query.filter_by(post_id=post_id).order_by(Comments.created_at.asc()).all()
+        comment_list = []
+
+        for comment in comments:
+            user = Members.query.get(comment.uid)
+
+            comment_list.append({
+                'comment_id': comment.comment_id,
+                'uid': comment.uid,
+                'username': user.username if user else '알 수 없음',
+                'content': comment.content,
+                'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'parent_comment_id': comment.parent_comment_id
+            })
+
+        return jsonify(comment_list), 200
+
+    except Exception as e:
+        return jsonify({'error': f'댓글 조회 중 오류: {str(e)}'}), 500
+
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def create_comment(post_id):
+    if 'uid' not in session:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    uid = session['uid']
+    data = request.get_json()
+
+    content = data.get('content')
+    parent_id = data.get('parent_comment_id')  # 대댓글을 위한 필드 (없으면 None)
+
+    if not content:
+        return jsonify({'error': '댓글 내용을 입력해주세요.'}), 400
+
+    try:
+        new_comment = Comments(
+            post_id=post_id,
+            uid=uid,
+            content=content,
+            parent_comment_id=parent_id  # None이면 일반 댓글
+        )
+        db.session.add(new_comment)
+
+        # 게시글의 댓글 수 증가
+        post = Posts.query.get(post_id)
+        if post:
+            post.comment_count += 1
+
+        db.session.commit()
+
+        return jsonify({'message': '댓글 등록 완료'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'댓글 등록 중 오류: {str(e)}'}), 500
+
+
+
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    if 'uid' not in session:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    uid = session['uid']
+    comment = Comments.query.get(comment_id)
+
+    if not comment:
+        return jsonify({'error': '댓글이 존재하지 않습니다.'}), 404
+
+    if comment.uid != uid:
+        return jsonify({'error': '삭제 권한이 없습니다.'}), 403
+
+    try:
+        db.session.delete(comment)
+
+        # 게시글 댓글 수 감소
+        post = Posts.query.get(comment.post_id)
+        if post:
+            post.comment_count = max(post.comment_count - 1, 0)
+
+        db.session.commit()
+        return jsonify({'message': '댓글 삭제 완료'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'댓글 삭제 중 오류: {str(e)}'}), 500
+
 
 
 # ──────────────────────────────
