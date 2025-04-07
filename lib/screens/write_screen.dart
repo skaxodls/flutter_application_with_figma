@@ -94,17 +94,17 @@ class _WriteScreenState extends State<WriteScreen> {
             ),
         });
 
-        // final response = await dio.post(
-        //   '/api/posts',
-        //   data: formData,
-        //   options: Options(contentType: 'multipart/form-data'),
-        // );
-
-        final response = await dio.put(
-          '/api/posts/${widget.postId}',
+        final response = await dio.post(
+          '/api/posts',
           data: formData,
           options: Options(contentType: 'multipart/form-data'),
         );
+
+        // await dio.put(
+        //   '/api/posts/${widget.postId}',
+        //   data: formData,
+        //   options: Options(contentType: 'multipart/form-data'),
+        // );
 
         if (response.statusCode == 200) {
           ScaffoldMessenger.of(context).showSnackBar(
