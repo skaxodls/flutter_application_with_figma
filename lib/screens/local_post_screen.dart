@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart'; // Dio 인스턴스 설정 파일
-
 import 'package:flutter_application_with_figma/screens/write_screen.dart'; // 글쓰기 화면
+import 'package:flutter_application_with_figma/screens/content_reader_screen.dart'; // ContentReaderScreen 페이지
 
 class LocalPostScreen extends StatefulWidget {
   const LocalPostScreen({Key? key}) : super(key: key);
@@ -104,8 +104,48 @@ class _LocalPostScreenState extends State<LocalPostScreen> {
                       imageUrl = post["images"][0]["image_url"] ?? imageUrl;
                     }
                     return GestureDetector(
-                      onTap: () {
-                        // TODO: 글 상세 페이지 이동 로직
+                      onTap: () async {
+                        // 게시글 클릭 시, post의 상세 정보를 받아와 상세 페이지로 이동
+                        try {
+                          final postId = post["post_id"];
+                          final response = await dio.get("/api/posts/$postId");
+                          if (response.statusCode == 200) {
+                            final jsonData = response.data;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ContentReaderScreen(
+                                  image: jsonData['image_url'],
+                                  title: jsonData['title'],
+                                  location: jsonData['location'],
+                                  price: jsonData['price'],
+                                  comments: jsonData['comment_count'],
+                                  likes: jsonData['like_count'],
+                                  tagColor: Color(int.parse(jsonData['tagColor']
+                                      .replaceFirst('#', '0xff'))),
+                                  username: jsonData['username'],
+                                  userRegion: jsonData['userRegion'],
+                                  postId: jsonData['post_id'],
+                                  postUid: jsonData['uid'],
+                                  currentUserUid: jsonData['currentUserUid'],
+                                  content: jsonData['content'],
+                                  createdAt: jsonData['created_at'],
+                                  status: jsonData['status'],
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      "게시글 상세 정보 로드 실패: ${response.statusCode}")),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("오류 발생: $e")),
+                          );
+                        }
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(

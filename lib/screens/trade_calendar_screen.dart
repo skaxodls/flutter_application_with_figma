@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
+import 'package:flutter_application_with_figma/screens/content_reader_screen.dart'; // ContentReaderScreen import
 
 // 거래 데이터를 표현하는 모델 클래스 (buyer_name 필드 사용)
 // API 응답의 is_seller 값을 활용하기 위해 isSeller 필드 추가
@@ -340,88 +341,128 @@ class _TradeCalendarScreenState extends State<TradeCalendarScreen> {
 
   Widget _buildTradeCard(Trade trade) {
     // 기존 카드 위젯
-    Widget card = Card(
-      color: Colors.white,
-      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 첫 번째 줄: 아이콘 + 날짜/시간 텍스트
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Image.asset(
-                  'assets/mypage_images/calendar_icon.png',
-                  width: 30,
-                  height: 30,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text:
-                              "${trade.tradeDate.year % 100}년 ${trade.tradeDate.month}월 ${trade.tradeDate.day}일 ${trade.time} ",
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF212121),
-                          ),
+    Widget cardContent = Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 첫 번째 줄: 아이콘 + 날짜/시간 텍스트
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Image.asset(
+                'assets/mypage_images/calendar_icon.png',
+                width: 30,
+                height: 30,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text:
+                            "${trade.tradeDate.year % 100}년 ${trade.tradeDate.month}월 ${trade.tradeDate.day}일 ${trade.time} ",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF212121),
                         ),
-                        TextSpan(
-                          text: trade.buyerName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF212121),
-                          ),
+                      ),
+                      TextSpan(
+                        text: trade.buyerName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF212121),
                         ),
-                        TextSpan(
-                          text: "님과 거래 약속을 만들었어요",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.normal,
-                            color: Color(0xFF212121),
-                          ),
+                      ),
+                      const TextSpan(
+                        text: "님과 거래 약속을 만들었어요",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.normal,
+                          color: Color(0xFF212121),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // 두 번째 줄: 위치 아이콘 + 주소
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: Color(0xFF757575),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    trade.address,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF616161),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // 세 번째 줄: 거래 글 바로가기 + 상품명
-            Row(
-              children: [
-                Text(
-                  "거래 글 바로가기 >",
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 두 번째 줄: 위치 아이콘 + 주소
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                size: 16,
+                color: Color(0xFF757575),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  trade.address,
                   style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF616161),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 세 번째 줄: 거래 글 바로가기 + 상품명 (클릭 시 ContentReaderScreen으로 이동)
+          InkWell(
+            onTap: () async {
+              try {
+                final postId = trade.postId;
+                final response = await dio.get("/api/posts/$postId");
+                if (response.statusCode == 200) {
+                  final jsonData = response.data;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ContentReaderScreen(
+                        image: jsonData['image_url'],
+                        title: jsonData['title'],
+                        location: jsonData['location'],
+                        price: jsonData['price'],
+                        comments: jsonData['comment_count'],
+                        likes: jsonData['like_count'],
+                        tagColor: Color(int.parse(
+                            jsonData['tagColor'].replaceFirst('#', '0xff'))),
+                        username: jsonData['username'],
+                        userRegion: jsonData['userRegion'],
+                        postId: jsonData['post_id'],
+                        postUid: jsonData['uid'],
+                        currentUserUid: jsonData['currentUserUid'],
+                        content: jsonData['content'],
+                        createdAt: jsonData['created_at'],
+                        status: jsonData['status'],
+                      ),
+                    ),
+                  );
+                } else {
+                  print("Failed to load post detail: ${response.statusCode}");
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("게시글 상세정보를 불러오지 못했습니다.")),
+                  );
+                }
+              } catch (e) {
+                print("Error fetching post detail: $e");
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("오류가 발생했습니다.")),
+                );
+              }
+            },
+            child: Row(
+              children: [
+                const Text(
+                  "거래 글 바로가기 >",
+                  style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF616161),
                   ),
@@ -436,67 +477,67 @@ class _TradeCalendarScreenState extends State<TradeCalendarScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            // 네 번째 줄: 거래금액과 거래완료 상태 또는 구매확정 버튼
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  "거래금액 : ${trade.price}",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: trade.postStatus == "거래완료"
-                        ? Colors.grey
-                        : const Color(0xFF212121),
+          ),
+          const SizedBox(height: 8),
+          // 네 번째 줄: 거래금액과 거래완료 상태 또는 구매확정 버튼
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                "거래금액 : ${trade.price}",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: trade.postStatus == "거래완료"
+                      ? Colors.grey
+                      : const Color(0xFF212121),
+                ),
+              ),
+              if (trade.postStatus == "거래완료")
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text(
+                    trade.isSeller ? "판매완료" : "구매완료",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF212121),
+                    ),
+                  ),
+                )
+              else if (!trade.isSeller)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      elevation: 1,
+                      side: const BorderSide(
+                        color: Color.fromARGB(255, 160, 160, 160),
+                        width: 0.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                    onPressed: () {
+                      // 구매확정 버튼 액션
+                      confirmPurchase(trade);
+                    },
+                    child: const Text(
+                      "구매확정",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-                if (trade.postStatus == "거래완료")
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: Text(
-                      trade.isSeller ? "판매완료" : "구매완료",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF212121),
-                      ),
-                    ),
-                  )
-                else if (!trade.isSeller)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        elevation: 1,
-                        side: const BorderSide(
-                          color: Color.fromARGB(255, 160, 160, 160),
-                          width: 0.5,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
-                      onPressed: () {
-                        // 구매확정 버튼 액션 (이전 기능 유지)
-                        confirmPurchase(trade);
-                      },
-                      child: const Text(
-                        "구매확정",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
 
-    // 삭제 모드일 경우 카드 전체를 탭할 수 있게 래핑하여 삭제 확인 처리
+    // 삭제 모드일 경우 카드 전체를 탭할 수 있게 GestureDetector로 래핑하여 삭제 확인 처리
     if (_isSelectionMode) {
       return GestureDetector(
         onTap: () async {
@@ -523,10 +564,18 @@ class _TradeCalendarScreenState extends State<TradeCalendarScreen> {
             deleteTrade(trade);
           }
         },
-        child: card,
+        child: Card(
+          color: Colors.white,
+          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+          child: cardContent,
+        ),
       );
     } else {
-      return card;
+      return Card(
+        color: Colors.white,
+        margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+        child: cardContent,
+      );
     }
   }
 }

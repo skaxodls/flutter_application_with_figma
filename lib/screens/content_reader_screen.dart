@@ -641,8 +641,8 @@ class _ContentReaderScreenState extends State<ContentReaderScreen> {
           ? FloatingActionButton.extended(
               onPressed: () => _showBuyerSelectionDialog(),
               backgroundColor: const Color(0xFF4A68EA),
-              icon: const Icon(Icons.handshake),
-              label: const Text("거래하기"),
+              icon: const Icon(Icons.handshake, color: Colors.white),
+              label: const Text("거래하기", style: TextStyle(color: Colors.white)),
             )
           : null,
     );

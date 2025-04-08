@@ -13,6 +13,7 @@ import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dar
 import 'package:flutter_application_with_figma/screens/release_criteria_screen.dart';
 import 'package:flutter_application_with_figma/screens/closed_season_screen.dart';
 import 'package:flutter_application_with_figma/screens/fish_habitat_screen.dart';
+import 'package:flutter_application_with_figma/screens/content_reader_screen.dart';
 
 //import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
@@ -366,17 +367,70 @@ class _HomeScreenState extends State<HomeScreen> {
                                     .map((post) {
                                   final imageUrl = post['image_url'] ?? '';
                                   final isNetwork = imageUrl.startsWith('/');
-
-                                  return _PopularPost(
-                                    image: isNetwork
-                                        ? 'http://127.0.0.1:5000$imageUrl'
-                                        : 'assets/images/noimage.png',
-                                    title: post['title'],
-                                    location:
-                                        '${post['location']} · ${post['created_at'].substring(11, 16)}',
-                                    price: '${post['price']}원',
-                                    comments: post['comment_count'],
-                                    likes: post['like_count'],
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      final postId = post['post_id'];
+                                      try {
+                                        final response =
+                                            await dio.get("/api/posts/$postId");
+                                        if (response.statusCode == 200) {
+                                          final jsonData = response.data;
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ContentReaderScreen(
+                                                image: jsonData['image_url'],
+                                                title: jsonData['title'],
+                                                location: jsonData['location'],
+                                                price: jsonData['price'],
+                                                comments:
+                                                    jsonData['comment_count'],
+                                                likes: jsonData['like_count'],
+                                                tagColor: Color(int.parse(
+                                                    jsonData['tagColor']
+                                                        .replaceFirst(
+                                                            '#', '0xff'))),
+                                                username: jsonData['username'],
+                                                userRegion:
+                                                    jsonData['userRegion'],
+                                                postId: jsonData['post_id'],
+                                                postUid: jsonData['uid'],
+                                                currentUserUid:
+                                                    jsonData['currentUserUid'],
+                                                content: jsonData['content'],
+                                                createdAt:
+                                                    jsonData['created_at'],
+                                                status: jsonData['status'],
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    "게시글 상세 정보 로드 실패: ${response.statusCode}")),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(content: Text("오류 발생: $e")),
+                                        );
+                                      }
+                                    },
+                                    child: _PopularPost(
+                                      image: isNetwork
+                                          ? 'http://127.0.0.1:5000$imageUrl'
+                                          : 'assets/images/noimage.png',
+                                      title: post['title'],
+                                      location:
+                                          '${post['location']} · ${post['created_at'].substring(11, 16)}',
+                                      price: '${post['price']}원',
+                                      comments: post['comment_count'],
+                                      likes: post['like_count'],
+                                    ),
                                   );
                                 }).toList(),
                               ),
