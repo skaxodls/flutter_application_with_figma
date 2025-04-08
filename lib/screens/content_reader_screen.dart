@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/screens/kakao_map_screen2.dart';
+import 'package:flutter_application_with_figma/screens/trade_calendar_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart';
 import 'write_screen.dart';
+import 'kakao_map_screen2.dart';
+import 'package:flutter_application_with_figma/screens/trade_history_screen.dart';
 
 Future<void> deletePost(int postId, BuildContext context) async {
   try {
@@ -70,6 +74,165 @@ class _ContentReaderScreenState extends State<ContentReaderScreen> {
   void initState() {
     super.initState();
     fetchComments();
+  }
+
+  Future<void> postTrade({
+    required int postId,
+    required int buyerUid,
+    required DateTime tradeDate,
+    required String regionName,
+    required String detailedAddress,
+  }) async {
+    try {
+      final formattedDate = "${tradeDate.year.toString().padLeft(4, '0')}-"
+          "${tradeDate.month.toString().padLeft(2, '0')}-"
+          "${tradeDate.day.toString().padLeft(2, '0')} "
+          "${tradeDate.hour.toString().padLeft(2, '0')}:"
+          "${tradeDate.minute.toString().padLeft(2, '0')}";
+
+      final response = await dio.post(
+        '/api/trades',
+        data: {
+          'post_id': widget.postId,
+          'buyer_uid': buyerUid,
+          'trade_date': formattedDate,
+          'region_name': regionName,
+          'detailed_address': detailedAddress,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('거래가 성공적으로 등록되었습니다.')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const TradeCalendarScreen(),
+          ),
+        );
+      } else {
+        throw Exception('거래 등록 실패');
+      }
+    } catch (e) {
+      print('❌ 거래 등록 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('거래 등록 중 오류가 발생했습니다.')),
+      );
+    }
+  }
+
+  void _showBuyerSelectionDialog() {
+    final commenters = _comments
+        .map((c) => {'uid': c['uid'], 'username': c['username']})
+        .toSet()
+        .toList(); // 중복 제거
+
+    if (commenters.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('거래 가능한 사용자가 없습니다.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('구매자 선택'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: commenters.length,
+              itemBuilder: (context, index) {
+                final user = commenters[index];
+                return ListTile(
+                  title: Text(user['username']),
+                  onTap: () {
+                    Navigator.pop(context); // 닫고 다음 단계로
+                    _selectTransactionDate(user['uid'], user['username']);
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _selectTransactionDate(int buyerUid, String buyerUsername) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)), // 앞으로 30일까지
+    );
+
+    if (pickedDate != null) {
+      // ⏰ 시간 선택
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+
+      if (pickedTime != null) {
+        // 🧠 날짜 + 시간 조합
+        final DateTime dateTimeWithTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        // 장소 선택 화면으로 이동
+        _navigateToKakaoMap(buyerUid, buyerUsername, dateTimeWithTime);
+      } else {
+        print("❌ 시간 선택 취소됨");
+      }
+    } else {
+      print("❌ 날짜 선택 취소됨");
+    }
+  }
+
+  void _navigateToKakaoMap(
+      int buyerUid, String buyerUsername, DateTime selectedDate) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const KakaoMapScreen2(),
+      ),
+    );
+
+    if (result != null && result is String) {
+      // 예: "서울 강서구 (마곡동 123-45)"
+      final RegExp regex = RegExp(r'^(.*?) \((.*?)\)$');
+      final match = regex.firstMatch(result);
+
+      if (match != null) {
+        final regionName = match.group(1)!;
+        final detailedAddress = match.group(2)!;
+
+        print("✅ 선택된 거래 장소:");
+        print("지역명: $regionName");
+        print("상세주소: $detailedAddress");
+
+        // 💥 여기서 거래 등록 API 호출
+        await postTrade(
+          postId: widget.postId,
+          buyerUid: buyerUid,
+          tradeDate: selectedDate,
+          regionName: regionName,
+          detailedAddress: detailedAddress,
+        );
+      } else {
+        print("❌ 주소 포맷이 올바르지 않습니다.");
+      }
+    } else {
+      print("❌ 거래 장소 선택이 취소됨");
+    }
   }
 
   Future<void> fetchComments() async {
@@ -474,6 +637,14 @@ class _ContentReaderScreenState extends State<ContentReaderScreen> {
           ],
         ),
       ),
+      floatingActionButton: widget.postUid == widget.currentUserUid
+          ? FloatingActionButton.extended(
+              onPressed: () => _showBuyerSelectionDialog(),
+              backgroundColor: const Color(0xFF4A68EA),
+              icon: const Icon(Icons.handshake),
+              label: const Text("거래하기"),
+            )
+          : null,
     );
   }
 }
