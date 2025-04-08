@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart';
+import 'content_reader_screen.dart'; // ContentReaderScreen의 위치에 맞게 import 경로를 수정하세요.
 
 class TradeHistoryScreen extends StatefulWidget {
   final int initialTab; // 0: 판매중, 1: 판매내역, 2: 구매내역
@@ -12,11 +13,10 @@ class TradeHistoryScreen extends StatefulWidget {
 
 class _TradeHistoryScreenState extends State<TradeHistoryScreen>
     with SingleTickerProviderStateMixin {
-  List sellingItems = []; // 판매중 (판매자가 등록했고 post_status가 '판매중' 또는 '예약중')
-  List sellingCompletedItems = []; // 판매내역 (판매자인 경우, post_status가 '거래완료')
-  List purchasedItems = []; // 구매내역 (구매자인 경우, post_status가 '거래완료')
+  List sellingItems = []; // 판매중
+  List sellingCompletedItems = []; // 판매내역
+  List purchasedItems = []; // 구매내역
   bool isLoading = true;
-
   late TabController _tabController;
 
   @override
@@ -64,7 +64,7 @@ class _TradeHistoryScreenState extends State<TradeHistoryScreen>
         : Scaffold(
             backgroundColor: const Color(0xFFF4F5F7),
             appBar: PreferredSize(
-              preferredSize: const Size.fromHeight(110), // 전체 높이 조정
+              preferredSize: const Size.fromHeight(110),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -166,7 +166,7 @@ class TradeListWidget extends StatelessWidget {
         final postStatus = trade['post_status'] ?? "";
         final imageUrl = trade['image_url'];
 
-        // imageUrl이 상대 경로일 경우 "http://127.0.0.1:5000"를 붙여 절대 URL로 변환
+        // imageUrl이 상대경로면 절대 URL로 변환
         final fullImageUrl = (imageUrl != null && imageUrl.startsWith('/'))
             ? "http://127.0.0.1:5000$imageUrl"
             : imageUrl;
@@ -189,8 +189,43 @@ class TradeListWidget extends StatelessWidget {
             subtitle: Text("$tradeDate\n가격: ${price}원\n상태: $postStatus"),
             isThreeLine: true,
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: 상세 페이지 이동 로직
+            onTap: () async {
+              // trade 객체에 post_id가 존재한다고 가정합니다.
+              final postId = trade['post_id'];
+              try {
+                final response = await dio.get("/api/posts/$postId");
+                if (response.statusCode == 200) {
+                  final jsonData = response.data;
+                  // 상세 페이지로 이동하면서 API 응답 데이터를 생성자 인자로 전달합니다.
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ContentReaderScreen(
+                        image: jsonData['image_url'],
+                        title: jsonData['title'],
+                        location: jsonData['location'],
+                        price: jsonData['price'],
+                        comments: jsonData['comment_count'],
+                        likes: jsonData['like_count'],
+                        tagColor: Color(int.parse(
+                            jsonData['tagColor'].replaceFirst('#', '0xff'))),
+                        username: jsonData['username'],
+                        userRegion: jsonData['userRegion'],
+                        postId: jsonData['post_id'],
+                        postUid: jsonData['uid'],
+                        currentUserUid: jsonData['currentUserUid'],
+                        content: jsonData['content'],
+                        createdAt: jsonData['created_at'],
+                        status: jsonData['status'],
+                      ),
+                    ),
+                  );
+                } else {
+                  print("Failed to load post detail: ${response.statusCode}");
+                }
+              } catch (e) {
+                print("Error fetching post detail: $e");
+              }
             },
           ),
         );

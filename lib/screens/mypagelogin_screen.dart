@@ -535,50 +535,50 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
                         }
 
                         return ListTile(
-                            leading: leadingWidget,
-                            title: Text(
-                              title,
-                              style: const TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text("$createdAt\n가격: ${price}원"),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              try {
-                                final response = await dio
-                                    .get('/api/posts/${post['post_id']}');
-                                if (response.statusCode == 200) {
-                                  final detail = response.data;
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ContentReaderScreen(
-                                        image: detail['image_url'],
-                                        title: detail['title'],
-                                        location: detail['location'],
-                                        price: detail['price'],
-                                        comments: 0,
-                                        likes: detail['like_count'],
-                                        tagColor: Color(int.parse(
-                                            detail['tagColor']
-                                                .replaceFirst('#', '0xff'))),
-                                        username: detail['username'],
-                                        userRegion: detail['userRegion'],
-                                        postId: detail['post_id'],
-                                        postUid: detail['uid'],
-                                        currentUserUid:
-                                            detail['currentUserUid'],
-                                        content: detail['content'],
-                                        createdAt: detail['created_at'],
-                                        status: detail['status'],
-                                      ),
+                          leading: leadingWidget,
+                          title: Text(
+                            title,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text("$createdAt\n가격: ${price}원"),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            try {
+                              final response = await dio
+                                  .get('/api/posts/${post['post_id']}');
+                              if (response.statusCode == 200) {
+                                final detail = response.data;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ContentReaderScreen(
+                                      image: detail['image_url'],
+                                      title: detail['title'],
+                                      location: detail['location'],
+                                      price: detail['price'],
+                                      comments: 0,
+                                      likes: detail['like_count'],
+                                      tagColor: Color(int.parse(
+                                          detail['tagColor']
+                                              .replaceFirst('#', '0xff'))),
+                                      username: detail['username'],
+                                      userRegion: detail['userRegion'],
+                                      postId: detail['post_id'],
+                                      postUid: detail['uid'],
+                                      currentUserUid: detail['currentUserUid'],
+                                      content: detail['content'],
+                                      createdAt: detail['created_at'],
+                                      status: detail['status'],
                                     ),
-                                  );
-                                }
-                              } catch (e) {
-                                print('게시글 상세 정보 가져오기 실패: $e');
+                                  ),
+                                );
                               }
-                            });
+                            } catch (e) {
+                              print('게시글 상세 정보 가져오기 실패: $e');
+                            }
+                          },
+                        );
                       },
                     ),
                   ],
