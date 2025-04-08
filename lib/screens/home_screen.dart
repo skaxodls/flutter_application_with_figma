@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_with_figma/screens/TAC_screen.dart';
 import 'package:flutter_application_with_figma/screens/weather_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 //screens
@@ -11,7 +12,7 @@ import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/screens/pictorial_book_screen.dart';
 import 'package:flutter_application_with_figma/screens/release_criteria_screen.dart';
 import 'package:flutter_application_with_figma/screens/closed_season_screen.dart';
-import 'package:flutter_application_with_figma/screens/weather_screen.dart';
+import 'package:flutter_application_with_figma/screens/fish_habitat_screen.dart';
 
 //import 'package:http/http.dart' as http; // 🔧 HTTP 요청을 위해 추가
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
@@ -34,6 +35,22 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     checkSession();
     fetchTideInfo();
+    fetchLatestPosts();
+  }
+
+  List<Map<String, dynamic>> latestPosts = [];
+
+  Future<void> fetchLatestPosts() async {
+    try {
+      final response = await dio.get('/api/posts/latest');
+      if (response.statusCode == 200) {
+        setState(() {
+          latestPosts = List<Map<String, dynamic>>.from(response.data);
+        });
+      }
+    } catch (e) {
+      print('최신 게시글 불러오기 실패: $e');
+    }
   }
 
   Future<void> fetchTideInfo() async {
@@ -224,8 +241,18 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisSpacing: 5, // 가로 간격 조정
                             children: [
                               _MenuItem(
-                                  image: 'assets/icons/map_icon.png',
-                                  label: "서식지"),
+                                image: 'assets/icons/map_icon.png',
+                                label: "서식지",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const FishHabitatScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
                               _MenuItem(
                                 image: 'assets/icons/no_fish.png',
                                 label: "금어기",
@@ -274,7 +301,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                               ),
                               _MenuItem(
-                                  image: 'assets/icons/tac.png', label: "TAC"),
+                                image: 'assets/icons/tac.png',
+                                label: "TAC",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const TACScreen()),
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         );
@@ -297,33 +334,52 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              "실시간 인기글",
+                              "최신 게시글",
                               style: TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             TextButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const CommunityScreen(),
+                                  ),
+                                );
+                              },
                               child: const Text("더보기 >"),
                             ),
                           ],
                         ),
-                        // 인기글 리스트
-                        _PopularPost(
-                          image: 'assets/images/fish_image1.png',
-                          title: "농어 팝니다",
-                          location: "포항시 이동 · 20분 전",
-                          price: "20,000원",
-                          comments: 3,
-                          likes: 3,
-                        ),
-                        _PopularPost(
-                          image: 'assets/images/fish_image2.png',
-                          title: "갓잡은 감성돔 팝니다",
-                          location: "남해군 남면 · 1시간 전",
-                          price: "20,000원",
-                          comments: 2,
-                          likes: 5,
-                        ),
+                        latestPosts.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Text(
+                                  "최신 게시글이 없습니다",
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              )
+                            : Column(
+                                children: latestPosts
+                                    .take(2) // 최대 2개만 보여줌
+                                    .map((post) {
+                                  final imageUrl = post['image_url'] ?? '';
+                                  final isNetwork = imageUrl.startsWith('/');
+
+                                  return _PopularPost(
+                                    image: isNetwork
+                                        ? 'http://127.0.0.1:5000$imageUrl'
+                                        : 'assets/images/noimage.png',
+                                    title: post['title'],
+                                    location:
+                                        '${post['location']} · ${post['created_at'].substring(11, 16)}',
+                                    price: '${post['price']}원',
+                                    comments: post['comment_count'],
+                                    likes: post['like_count'],
+                                  );
+                                }).toList(),
+                              ),
                       ],
                     ),
                   ),
@@ -514,6 +570,8 @@ class _PopularPost extends StatefulWidget {
   final String price;
   final int comments;
   final int likes;
+  // final VoidCallback? onTap; // 👈 추가
+  // final int postId; // 👈 추가
 
   const _PopularPost({
     required this.image,
@@ -522,6 +580,8 @@ class _PopularPost extends StatefulWidget {
     required this.price,
     required this.comments,
     required this.likes,
+    // required this.postId, // 👈 추가
+    // this.onTap,
     super.key,
   });
 
@@ -569,8 +629,27 @@ class _PopularPostState extends State<_PopularPost> {
           // 게시글 이미지
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.asset(widget.image,
-                height: 60, width: 60, fit: BoxFit.cover),
+            child: widget.image.startsWith('http')
+                ? Image.network(
+                    widget.image,
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        'assets/images/noimage.png',
+                        height: 60,
+                        width: 60,
+                        fit: BoxFit.cover,
+                      );
+                    },
+                  )
+                : Image.asset(
+                    widget.image,
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.cover,
+                  ),
           ),
           const SizedBox(width: 10),
           // 게시글 내용
