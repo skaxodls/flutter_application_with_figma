@@ -660,6 +660,30 @@ def get_market_prices():
 #     커뮤니티 API
 #-----------------------------------------------------------
 
+# 홈화면 최신 글 2개
+@app.route('/api/posts/latest', methods=['GET'])
+def get_latest_posts():
+    try:
+        posts = Posts.query.order_by(Posts.created_at.desc()).limit(2).all()
+        result = []
+        for post in posts:
+            user = Members.query.get(post.uid)
+            region = Region.query.get(user.region_id) if user and user.region_id else None
+            image = Images.query.filter_by(entity_type='post', entity_id=post.post_id).first()
+            result.append({
+                'post_id': post.post_id,
+                'title': post.title,
+                'location': region.region_name if region else "",
+                'created_at': post.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'price': post.price,
+                'comment_count': post.comment_count,
+                'like_count': post.like_count,
+                'image_url': image.image_url if image else "",
+            })
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/posts', methods=['POST'])
 def create_post():
     if 'uid' not in session:
@@ -930,6 +954,55 @@ def delete_comment(comment_id):
 # ──────────────────────────────
 # API 엔드포인트: 거래 데이터 목록 반환 (/api/trades)
 # ──────────────────────────────
+
+@app.route('/api/trades', methods=['POST'])
+def create_trade():
+    if 'uid' not in session:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    seller_uid = session['uid']
+    data = request.get_json()
+
+    post_id = data.get('post_id')
+    buyer_uid = data.get('buyer_uid')
+    date_str = data.get('trade_date')  # "2025-04-10 14:30"
+    region_name = data.get('region_name')
+    detailed_address = data.get('detailed_address')
+
+    if not all([post_id, buyer_uid, date_str, region_name, detailed_address]):
+        return jsonify({'error': '필수 항목 누락'}), 400
+
+    try:
+        # 1. 날짜/시간 문자열을 datetime 객체로 파싱
+        trade_date = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+
+        # 2. Region 저장
+        new_region = Region(region_name=region_name, detailed_address=detailed_address)
+        db.session.add(new_region)
+        db.session.commit()
+
+        # 3. Trade 저장
+        new_trade = Trade(
+            post_id=post_id,
+            seller_uid=seller_uid,
+            buyer_uid=buyer_uid,
+            trade_date=trade_date,
+            region_id=new_region.region_id
+        )
+        db.session.add(new_trade)
+
+        # ✅ 4. 해당 게시글 상태를 '예약중'으로 변경
+        post = Posts.query.get(post_id)
+        if post:
+            post.post_status = '예약중'
+        db.session.commit()
+
+        return jsonify({'message': '거래 등록 완료'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'거래 등록 중 오류 발생: {str(e)}'}), 500
+    
 @app.route('/api/trades', methods=['GET'])
 def get_trades():
     uid = session.get('uid')
