@@ -208,8 +208,29 @@ class _MarketPriceScreenState extends State<MarketPriceScreen> {
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
         currentIndex: 3, // 싯가 탭 활성화
-        onTap: (index) {
-          if (index == 0) {
+        onTap: (index) async {
+          if (index == 4) {
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              // 실패 시 기본 마이페이지로
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
+          } else if (index == 0) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -231,27 +252,6 @@ class _MarketPriceScreenState extends State<MarketPriceScreen> {
               MaterialPageRoute(
                   builder: (context) => const MarketPriceScreen()),
             );
-          } else if (index == 4) {
-            try {
-              final response = await dio.get('/api/check_session');
-              final loggedIn = response.statusCode == 200 &&
-                  response.data['logged_in'] == true;
-
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => loggedIn
-                      ? const MyPageLoginScreen()
-                      : const MyPageScreen(),
-                ),
-              );
-            } catch (e) {
-              // 실패 시 기본 마이페이지로
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const MyPageScreen()),
-              );
-            }
           }
         },
         items: const [
