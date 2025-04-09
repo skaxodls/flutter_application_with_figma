@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'price_detail_screen.dart';
 import 'home_screen.dart';
 import 'mypage_screen.dart';
+import 'mypagelogin_screen.dart';
 import 'community_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
 
 class MarketPriceScreen extends StatefulWidget {
   const MarketPriceScreen({super.key});
@@ -217,6 +219,12 @@ class _MarketPriceScreenState extends State<MarketPriceScreen> {
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
             );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
+            );
           } else if (index == 3) {
             Navigator.pushReplacement(
               context,
@@ -224,10 +232,26 @@ class _MarketPriceScreenState extends State<MarketPriceScreen> {
                   builder: (context) => const MarketPriceScreen()),
             );
           } else if (index == 4) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MyPageScreen()),
-            );
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              // 실패 시 기본 마이페이지로
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
           }
         },
         items: const [
