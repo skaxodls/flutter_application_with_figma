@@ -349,7 +349,7 @@ class _FishCard extends StatelessWidget {
                           final mappedImage = fishImageMapping[fishId];
                           if (mappedImage != null) {
                             return Image.network(
-                              "http://127.0.0.1:5000" + mappedImage,
+                              "${dio.options.baseUrl}" + mappedImage,
                               height: 70,
                               errorBuilder: (context, error, stackTrace) {
                                 return Image.asset(

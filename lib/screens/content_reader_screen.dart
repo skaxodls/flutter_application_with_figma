@@ -443,7 +443,7 @@ class _ContentReaderScreenState extends State<ContentReaderScreen> {
           children: [
             hasImage
                 ? Image.network(
-                    'http://127.0.0.1:5000${widget.image}',
+                    '${dio.options.baseUrl}${widget.image}',
                     width: double.infinity,
                     height: 200,
                     fit: BoxFit.cover,

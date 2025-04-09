@@ -144,7 +144,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
         currentIndex: 4,
-        onTap: (index) async{
+        onTap: (index) async {
           if (index == 0) {
             Navigator.pushReplacement(
               context,
@@ -536,9 +536,8 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
                               fit: BoxFit.cover,
                             );
                           } else if (imageUrlStr.startsWith('/')) {
-                            // 상대 경로면 네트워크 이미지로 처리 (기본적으로 127.0.0.1:5000 뒤에 붙임)
                             final fullImageUrl =
-                                "http://127.0.0.1:5000$imageUrlStr";
+                                "${dio.options.baseUrl}$imageUrlStr";
                             leadingWidget = Image.network(
                               fullImageUrl,
                               width: 60,

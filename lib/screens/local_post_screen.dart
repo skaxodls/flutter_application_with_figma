@@ -63,7 +63,7 @@ class _LocalPostScreenState extends State<LocalPostScreen> {
     }
     // imageUrl이 네트워크 URL이 아니면, 서버의 기본 URL을 추가합니다.
     if (!imageUrl.startsWith("http")) {
-      imageUrl = "http://127.0.0.1:5000" + imageUrl;
+      imageUrl = "${dio.options.baseUrl}" + imageUrl;
     }
     return Image.network(
       imageUrl,

@@ -380,7 +380,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
   // 물고기 이미지 URL 결정: 잡은 물고기 등록 여부에 따라 매핑된 이미지 또는 기본 이미지 반환
   Future<String> determineFishImage() async {
     bool registered = await isFishRegistered();
-    const String serverUrl = "http://127.0.0.1:5000";
+    String serverUrl = '${dio.options.baseUrl}';
     if (registered) {
       Map<int, String> mapping = {
         1: '/static/images/neobchinongeo.jpg',
@@ -426,7 +426,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               builder: (context, snapshot) {
                 String imageUrl = snapshot.hasData
                     ? snapshot.data!
-                    : "http://127.0.0.1:5000/static/images/fish_icon7.png";
+                    : "${dio.options.baseUrl}/static/images/fish_icon7.png";
                 return Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 20),
@@ -587,8 +587,8 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                                       log["image"].toString().isNotEmpty
                                   ? Image.network(
                                       log["image"].startsWith("/static/images/")
-                                          ? "http://127.0.0.1:5000${log["image"]}" // 절대 경로일 경우 그대로 사용
-                                          : "http://127.0.0.1:5000/static/images/${log["image"]}", // 파일명만 있을 경우 경로 추가
+                                          ? "${dio.options.baseUrl}${log["image"]}" // 절대 경로일 경우 그대로 사용
+                                          : "${dio.options.baseUrl}/static/images/${log["image"]}", // 파일명만 있을 경우 경로 추가
                                       width: 80,
                                       height: 60,
                                       fit: BoxFit.cover,

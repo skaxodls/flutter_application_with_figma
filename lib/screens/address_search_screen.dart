@@ -29,12 +29,21 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
   @override
   void initState() {
     super.initState();
+    // Dio 설정을 먼저 초기화한 후 웹뷰 초기화 진행
+    _initialize();
+  }
 
-    if (Platform.isWindows) {
-      _windowsController = WebviewController();
-      _initWindowsWebView();
-    } else if (Platform.isAndroid || Platform.isIOS) {
-      _initMobileWebView();
+  Future<void> _initialize() async {
+    try {
+      await setupDio();
+      if (Platform.isWindows) {
+        _windowsController = WebviewController();
+        _initWindowsWebView();
+      } else if (Platform.isAndroid || Platform.isIOS) {
+        _initMobileWebView();
+      }
+    } catch (e) {
+      print("Dio 설정 실패: $e");
     }
   }
 

@@ -342,7 +342,7 @@ class _CommunityPost extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               child: image.startsWith('/static') || image.startsWith('http')
                   ? Image.network(
-                      'http://127.0.0.1:5000$image', // ← 서버 주소 추가
+                      '${dio.options.baseUrl}$image', // ← 서버 주소 추가
                       // 'http://10.0.2.2:5000$image',
                       // 'http://192.168.0.102:5000$image',
                       height: 95,

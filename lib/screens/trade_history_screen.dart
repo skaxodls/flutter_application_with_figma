@@ -168,7 +168,7 @@ class TradeListWidget extends StatelessWidget {
 
         // imageUrl이 상대경로면 절대 URL로 변환
         final fullImageUrl = (imageUrl != null && imageUrl.startsWith('/'))
-            ? "http://127.0.0.1:5000$imageUrl"
+            ? "${dio.options.baseUrl}$imageUrl"
             : imageUrl;
 
         return Card(

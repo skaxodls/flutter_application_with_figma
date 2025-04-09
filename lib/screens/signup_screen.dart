@@ -1,11 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:webview_windows/webview_windows.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_application_with_figma/dio_setup.dart';
+
+// Windows 전용 웹뷰 패키지 (별칭으로 불러오기)
+import 'package:webview_windows/webview_windows.dart' as win;
+// 모바일(Android/iOS) 전용 웹뷰 패키지 (최신 API 사용)
+import 'package:webview_flutter/webview_flutter.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
-
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
@@ -19,37 +23,78 @@ class _SignUpScreenState extends State<SignUpScreen> {
       TextEditingController();
 
   Future<void> _openAddressSearch(BuildContext context) async {
-    final controller = WebviewController();
-    await controller.initialize();
+    if (Platform.isWindows) {
+      // Windows 환경: webview_windows 사용
+      final controller = win.WebviewController();
+      await controller.initialize();
 
-    controller.webMessage.listen((message) {
-      try {
-        final data = jsonDecode(message);
-        final regionName = data['extra'] ?? ''; // 시/구/동
-        final detailedAddress = data['address'] ?? ''; // 상세 주소
-        if (regionName.isNotEmpty && detailedAddress.isNotEmpty) {
-          setState(() {
-            _regionNameController.text = regionName;
-            _detailedAddressController.text = detailedAddress;
-          });
-          Navigator.pop(context);
+      controller.webMessage.listen((message) async {
+        print("📌 Windows WebView에서 받은 데이터: $message");
+        try {
+          final data = jsonDecode(message);
+          final regionName = data['extra'] ?? ''; // 시/구/동
+          final detailedAddress = data['address'] ?? ''; // 상세 주소
+          if (regionName.isNotEmpty && detailedAddress.isNotEmpty) {
+            setState(() {
+              _regionNameController.text = regionName;
+              _detailedAddressController.text = detailedAddress;
+            });
+            Navigator.pop(context);
+          }
+        } catch (e) {
+          print('주소 파싱 실패: $e');
         }
-      } catch (e) {
-        print('주소 파싱 실패: \$e');
-      }
-    });
+      });
 
-    await controller.loadUrl('http://127.0.0.1:5000/kakao_postcode.html');
+      await controller.loadUrl('${dio.options.baseUrl}/kakao_postcode.html');
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: const Text("주소 검색")),
-          body: Webview(controller),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text("주소 검색")),
+            body: win.Webview(controller),
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // 안드로이드/IOS 환경: webview_flutter 사용
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..addJavaScriptChannel(
+          'FlutterChannel',
+          onMessageReceived: (JavaScriptMessage message) {
+            print("📌 Mobile WebView에서 받은 메시지: ${message.message}");
+            try {
+              final data = jsonDecode(message.message);
+              final regionName = data['extra'] ?? ''; // 시/구/동
+              final detailedAddress = data['address'] ?? ''; // 상세 주소
+              if (regionName.isNotEmpty && detailedAddress.isNotEmpty) {
+                setState(() {
+                  _regionNameController.text = regionName;
+                  _detailedAddressController.text = detailedAddress;
+                });
+                Navigator.pop(context);
+              }
+            } catch (e) {
+              print('주소 파싱 실패 (모바일): $e');
+            }
+          },
+        );
+
+      await controller
+          .loadRequest(Uri.parse('${dio.options.baseUrl}/kakao_postcode.html'));
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text("주소 검색")),
+            body: WebViewWidget(controller: controller),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _submitSignUp() async {
@@ -70,18 +115,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    final url = Uri.parse('http://127.0.0.1:5000/api/register');
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      // dio 인스턴스를 이용하여 회원가입 API 호출 (baseUrl은 dio_setup.dart에서 설정됨)
+      final response = await dio.post(
+        '/api/register',
+        data: {
           'id': id,
           'password': pw,
           'username': name,
           'region_name': regionName,
           'detailed_address': detailedAddress,
-        }),
+        },
       );
 
       if (response.statusCode == 200) {
@@ -91,12 +135,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("회원가입 실패: \${response.body}")),
+          SnackBar(content: Text("회원가입 실패: ${response.data}")),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("오류 발생: \$e")),
+        SnackBar(content: Text("오류 발생: $e")),
       );
     }
   }
