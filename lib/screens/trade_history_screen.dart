@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'home_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart';
+import 'package:flutter_application_with_figma/screens/community_screen.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
+import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'content_reader_screen.dart'; // ContentReaderScreen의 위치에 맞게 import 경로를 수정하세요.
 
 class TradeHistoryScreen extends StatefulWidget {
@@ -128,8 +134,55 @@ class _TradeHistoryScreenState extends State<TradeHistoryScreen>
               unselectedItemColor: Colors.black,
               type: BottomNavigationBarType.fixed,
               currentIndex: 4, // 네비게이션바의 현재 선택된 인덱스
-              onTap: (index) {
-                // TODO: 하단 네비게이션 이동 로직 작성
+              onTap: (index) async {
+                if (index == 0) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                } else if (index == 1) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const CommunityScreen()),
+                  );
+                } else if (index == 2) {
+                  // 내 포인트 버튼 클릭 시
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const MyPointScreen()),
+                  );
+                } else if (index == 3) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const MarketPriceScreen()),
+                  );
+                } else if (index == 4) {
+                  // ✅ 마이페이지 클릭 시 세션 상태 확인 후 분기
+                  try {
+                    final response = await dio.get('/api/check_session');
+                    final loggedIn = response.statusCode == 200 &&
+                        response.data['logged_in'] == true;
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => loggedIn
+                            ? const MyPageLoginScreen()
+                            : const MyPageScreen(),
+                      ),
+                    );
+                  } catch (e) {
+                    // 오류 발생 시 기본 마이페이지로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const MyPageScreen()),
+                    );
+                  }
+                }
               },
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
