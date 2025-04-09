@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
     <title>카카오 주소 검색</title>
     <style>
       body {
@@ -113,12 +112,12 @@
           extra: extra,
         };
 
-        // ✅ Windows WebView (webview_windows 플러그인)로 전송
+        // Windows WebView (webview_windows 플러그인)로 전송
         if (window.chrome && window.chrome.webview) {
           window.chrome.webview.postMessage(JSON.stringify(result));
-        } else if (window.onAddressSelected) {
-          // 웹 또는 다른 플랫폼 (예: Android용 WebView)
-          window.onAddressSelected.postMessage(JSON.stringify(result));
+        } else if (window.FlutterChannel) {
+          // 모바일(Android/iOS) 환경: Flutter에서 등록한 JavaScript 채널 이름 사용
+          FlutterChannel.postMessage(JSON.stringify(result));
         }
       }
     </script>
