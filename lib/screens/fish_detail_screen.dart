@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:intl/intl.dart'; // 날짜 선택을 위한 패키지
 //import 'package:webview_flutter/webview_flutter.dart'; // 카카오 지도 API를 위한 웹뷰 패키지
 import 'package:flutter_application_with_figma/screens/kakao_map_screen.dart'; // 카카오 지도 다이얼로그 화면
-
+import 'home_screen.dart';
 import 'package:image_picker/image_picker.dart'; // 이미지 선택을 위한 패키지
 import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
@@ -637,7 +637,12 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: 2,
         onTap: (index) async {
-          if (index == 1) {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
