@@ -153,6 +153,12 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
             );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
+            );
           } else if (index == 3) {
             Navigator.pushReplacement(
               context,
