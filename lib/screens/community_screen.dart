@@ -7,6 +7,7 @@ import 'market_price_screen.dart';
 import 'mypagelogin_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -189,6 +190,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
+            );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
             );
           } else if (index == 3) {
             Navigator.pushReplacement(
