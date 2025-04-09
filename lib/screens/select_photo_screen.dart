@@ -6,7 +6,8 @@ import 'home_screen.dart'; // ✅ 홈 화면 추가
 import 'community_screen.dart'; // ✅ 커뮤니티 화면 추가
 import 'market_price_screen.dart'; // ✅ 싯가 화면 추가
 import 'mypage_screen.dart';
-
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart'; // dio 인스턴스 import
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -303,7 +304,7 @@ class _SelectPhotoScreenState extends State<SelectPhotoScreen> {
         unselectedItemColor: const Color(0xFF999999), // 비활성화 아이콘 색상 적용
         type: BottomNavigationBarType.fixed,
         currentIndex: 0, // ✅ 현재 선택된 탭 (홈)
-        onTap: (index) {
+        onTap: (index) async {
           if (index == 0) {
             Navigator.pushReplacement(
               context,
@@ -317,6 +318,12 @@ class _SelectPhotoScreenState extends State<SelectPhotoScreen> {
                   builder: (context) =>
                       const CommunityScreen()), // ✅ 커뮤니티 화면 이동
             );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
+            );
           } else if (index == 3) {
             Navigator.pushReplacement(
               context,
@@ -325,11 +332,27 @@ class _SelectPhotoScreenState extends State<SelectPhotoScreen> {
                       const MarketPriceScreen()), // ✅ 싯가 화면 이동
             );
           } else if (index == 4) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const MyPageScreen()), // ✅ 마이페이지 이동
-            );
+            // ✅ 마이페이지 클릭 시 세션 상태 확인 후 분기
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              // 오류 발생 시 기본 마이페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
           }
         },
         items: const [
