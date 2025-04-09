@@ -4,6 +4,7 @@ import 'package:flutter_application_with_figma/screens/signup_screen.dart';
 import 'home_screen.dart';
 import 'community_screen.dart';
 import 'market_price_screen.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -295,6 +296,12 @@ class MyPageScreen extends StatelessWidget {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const CommunityScreen()),
+          );
+        } else if (index == 2) {
+          // 내 포인트 버튼 클릭 시
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MyPointScreen()),
           );
         } else if (index == 3) {
           Navigator.pushReplacement(
