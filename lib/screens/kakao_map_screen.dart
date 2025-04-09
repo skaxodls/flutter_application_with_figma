@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart';
+
+// Windows 전용 웹뷰 패키지
 import 'package:webview_windows/webview_windows.dart';
+// 모바일(Android/iOS) 전용 웹뷰 패키지 (최신 API 사용)
+import 'package:webview_flutter/webview_flutter.dart';
 
 class KakaoMapScreen extends StatefulWidget {
   final String? initialAddress; // 상세주소만 전달받음 (내 포인트 목록 클릭 시)
@@ -12,28 +17,39 @@ class KakaoMapScreen extends StatefulWidget {
 }
 
 class _KakaoMapScreenState extends State<KakaoMapScreen> {
-  late final WebviewController _controller;
-  bool _isWebViewInitialized = false;
+  // Windows용 웹뷰 컨트롤러
+  late final WebviewController _windowsController;
+  bool _isWindowsWebViewInitialized = false;
+
+  // 모바일(Android/iOS)용 웹뷰 컨트롤러 (webview_flutter 최신 API)
+  late final WebViewController _mobileController;
+  bool _isMobileWebViewInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebviewController();
-    _initWebView();
+
+    if (Platform.isWindows) {
+      _windowsController = WebviewController();
+      _initWindowsWebView();
+    } else if (Platform.isAndroid || Platform.isIOS) {
+      _initMobileWebView();
+    }
   }
 
-  Future<void> _initWebView() async {
+  // Windows 전용 웹뷰 초기화 함수
+  Future<void> _initWindowsWebView() async {
     try {
-      await _controller.initialize();
-      print("✅ WebView2 초기화 완료");
+      await _windowsController.initialize();
+      print("✅ Windows WebView 초기화 완료");
 
-      // WebView에서 메시지 수신 (주소 선택 후 처리)
-      _controller.webMessage.listen((message) async {
-        print("📌 WebView에서 받은 데이터: $message");
+      // Windows 웹뷰: 메시지 수신 리스너
+      _windowsController.webMessage.listen((message) async {
+        print("📌 Windows WebView에서 받은 데이터: $message");
         try {
           final Map<String, dynamic> addressData = jsonDecode(message);
 
-          // 만약 addressName이 "포인트 위치"라면 사용자에게 지역 이름 입력을 요청합니다.
+          // addressName이 "포인트 위치"이면 사용자에게 지역 이름 입력 요청
           if (addressData['addressName'] == '포인트 위치') {
             String? regionName = await showDialog<String>(
               context: context,
@@ -64,7 +80,6 @@ class _KakaoMapScreenState extends State<KakaoMapScreen> {
                 );
               },
             );
-            // 만약 사용자가 유효한 값을 입력하면 업데이트, 아니면 그대로 "포인트 위치"로 유지합니다.
             if (regionName != null && regionName.isNotEmpty) {
               addressData['addressName'] = regionName;
             }
@@ -74,7 +89,7 @@ class _KakaoMapScreenState extends State<KakaoMapScreen> {
               "${addressData['addressName']} (${addressData['detailedAddress']})";
           print("📌 변환된 주소: $formattedAddress");
 
-          // 사용자에게 추가 여부를 묻는 BottomSheet 표시
+          // Windows에서 모달 BottomSheet로 주소 확인 요청
           bool? confirmed = await showModalBottomSheet<bool>(
             context: context,
             barrierColor: Colors.transparent,
@@ -129,23 +144,124 @@ class _KakaoMapScreenState extends State<KakaoMapScreen> {
             print("사용자가 추가를 취소했습니다.");
           }
         } catch (e) {
-          print("❌ JSON 파싱 오류: $e");
+          print("❌ Windows WebView JSON 파싱 오류: $e");
         }
       });
 
       // URL 생성: initialAddress가 있으면 쿼리 파라미터로 추가
-      String url = 'http://127.0.0.1:5000/kakao_map.html';
+      String url = '${dio.options.baseUrl}/kakao_map.html';
       if (widget.initialAddress != null) {
         final encoded = Uri.encodeComponent(widget.initialAddress!);
         url += '?initialAddress=$encoded';
       }
-      await _controller.loadUrl(url);
+      await _windowsController.loadUrl(url);
 
       setState(() {
-        _isWebViewInitialized = true;
+        _isWindowsWebViewInitialized = true;
       });
     } catch (e) {
-      print("❌ WebView 초기화 실패: $e");
+      print("❌ Windows WebView 초기화 실패: $e");
+    }
+  }
+
+  // 모바일(Android/iOS)용 웹뷰 초기화 함수 (최신 webview_flutter API 사용)
+  Future<void> _initMobileWebView() async {
+    _mobileController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // 모바일에서 HTML로부터 메시지를 받기 위한 JavaScriptChannel 등록
+      ..addJavaScriptChannel(
+        'FlutterChannel',
+        onMessageReceived: (JavaScriptMessage message) {
+          print("📌 Mobile WebView에서 받은 메시지: ${message.message}");
+          try {
+            final Map<String, dynamic> addressData =
+                jsonDecode(message.message);
+            _showMobileAddressConfirmation(addressData);
+          } catch (e) {
+            print("❌ Mobile WebView JSON 파싱 오류: $e");
+          }
+        },
+      )
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (url) {
+            print("✅ Mobile WebView 페이지 로드 완료: $url");
+          },
+          onWebResourceError: (error) {
+            print("❌ Mobile WebView 에러: $error");
+          },
+        ),
+      );
+
+    String url = '${dio.options.baseUrl}/kakao_map.html';
+    if (widget.initialAddress != null) {
+      final encoded = Uri.encodeComponent(widget.initialAddress!);
+      url += '?initialAddress=$encoded';
+    }
+    // 페이지 요청 로드
+    _mobileController.loadRequest(Uri.parse(url));
+
+    setState(() {
+      _isMobileWebViewInitialized = true;
+    });
+  }
+
+  // 모바일에서 메시지 수신 시, 하단 모달 BottomSheet를 띄워 주소 확인하는 함수
+  void _showMobileAddressConfirmation(Map<String, dynamic> addressData) async {
+    final String formattedAddress =
+        "${addressData['addressName']} (${addressData['detailedAddress']})";
+    bool? confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      barrierColor: Colors.transparent,
+      isDismissible: false,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8F8F8),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Wrap(
+            children: [
+              Center(
+                child: Text(
+                  "지역 추가",
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  "선택한 지역을 추가하시겠습니까?\n\n$formattedAddress",
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("아니요"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("예"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (confirmed == true) {
+      Navigator.pop(context, formattedAddress);
+    } else {
+      print("사용자가 추가를 취소했습니다.");
     }
   }
 
@@ -162,9 +278,13 @@ class _KakaoMapScreenState extends State<KakaoMapScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: _isWebViewInitialized
-          ? SizedBox.expand(child: Webview(_controller))
-          : const Center(child: CircularProgressIndicator()),
+      body: Platform.isWindows
+          ? (_isWindowsWebViewInitialized
+              ? SizedBox.expand(child: Webview(_windowsController))
+              : const Center(child: CircularProgressIndicator()))
+          : _isMobileWebViewInitialized
+              ? WebViewWidget(controller: _mobileController)
+              : const Center(child: CircularProgressIndicator()),
     );
   }
 }

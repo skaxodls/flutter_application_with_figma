@@ -422,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     },
                                     child: _PopularPost(
                                       image: isNetwork
-                                          ? 'http://127.0.0.1:5000$imageUrl'
+                                          ? '${dio.options.baseUrl}$imageUrl'
                                           : 'assets/images/noimage.png',
                                       title: post['title'],
                                       location:

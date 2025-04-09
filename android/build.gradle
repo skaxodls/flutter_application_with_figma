@@ -1,3 +1,16 @@
+// android/build.gradle
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // 최신 안정 버전인 8.9.1로 설정합니다.
+        classpath 'com.android.tools.build:gradle:8.9.1'
+    }
+}
+
+
 allprojects {
     repositories {
         google()
@@ -16,3 +29,4 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+

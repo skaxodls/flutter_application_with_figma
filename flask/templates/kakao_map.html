@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>카카오 지도 검색</title>
   <!-- 카카오 지도 JS SDK (WebView2에서 로드 가능) -->
   <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=be680803e7b04c426b6e4b1666b17e67&libraries=services,places"></script>
@@ -12,7 +13,7 @@
     #searchBox { flex: 1; height: 40px; font-size: 14px; border: none; outline: none; padding: 0 8px; }
     #searchButton { height: 40px; margin-left: 8px; padding: 0 16px; font-size: 14px; cursor: pointer; }
     /* 지도 영역 */
-    #map { width: 100%; height: 400px; margin: 10px auto; position: relative; }
+    #map { width: 100%; height: 50vh; margin: 10px auto; position: relative; }
     /* 검색 결과 목록 */
     #resultList { width: 100%; height: calc(30vh - 40px); overflow-y: auto; margin: 10px auto; max-width: 500px; }
     .resultItem { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
@@ -58,6 +59,22 @@
       z-index: 500;
       pointer-events: none;
     }
+    /* 커스텀 알림창 스타일 (하단) */
+    #customAlertContainer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.2);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      display: none;
+      z-index: 10000;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -71,10 +88,20 @@
   <div id="map"></div>
   <!-- 검색 결과 목록 -->
   <div id="resultList"></div>
+  <!-- 커스텀 알림창 -->
+  <div id="customAlertContainer"></div>
 
   <script>
     let map, ps, markers = [];
     let currentMarker = null;
+
+    // 커스텀 알림창 함수 (화면 하단에 표시)
+    function showCustomAlert(message) {
+      let alertContainer = document.getElementById('customAlertContainer');
+      alertContainer.innerText = message;
+      alertContainer.style.display = 'block';
+      setTimeout(() => { alertContainer.style.display = 'none'; }, 3000);
+    }
 
     // 쿼리 파라미터 추출 함수
     function getQueryParam(param) {
@@ -112,7 +139,10 @@
 
     function searchPlaces() {
       const query = document.getElementById('searchBox').value.trim();
-      if (!query) { alert('검색어를 입력하세요.'); return; }
+      if (!query) { 
+        showCustomAlert('검색어를 입력하세요.');
+        return; 
+      }
       console.log("🔍 검색어:", query);
       ps.keywordSearch(query, placesSearchCB);
     }
@@ -122,9 +152,9 @@
         console.log("✅ 검색 결과:", data);
         displayPlaces(data);
       } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-        alert('검색 결과가 없습니다.');
+        showCustomAlert('검색 결과가 없습니다.');
       } else {
-        alert('검색 중 오류가 발생했습니다.');
+        showCustomAlert('검색 중 오류가 발생했습니다.');
       }
     }
 
@@ -161,7 +191,7 @@
           } else if (window.FlutterChannel) {
               window.FlutterChannel.postMessage(JSON.stringify(addressObj));
           } else {
-              alert("✅ 선택된 주소: " + JSON.stringify(addressObj));
+              showCustomAlert("✅ 선택된 주소: " + JSON.stringify(addressObj));
           }
         };
         resultList.appendChild(itemEl);
@@ -256,12 +286,12 @@
             } else if (window.FlutterChannel) {
               window.FlutterChannel.postMessage(JSON.stringify(addressObj));
             } else {
-              alert("✅ 선택된 주소: " + JSON.stringify(addressObj));
+              showCustomAlert("✅ 선택된 주소: " + JSON.stringify(addressObj));
             }
             const centerIcon = document.getElementById('centerIcon');
             if (centerIcon) { centerIcon.remove(); }
           } else {
-            alert("주소 변환에 실패했습니다.");
+            showCustomAlert("주소 변환에 실패했습니다.");
           }
         });
       });
