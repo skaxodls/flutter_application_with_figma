@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'market_price_screen.dart'; // CombinedFishInfo, MarketPriceFish 모델이 정의된 파일
+import 'package:flutter_application_with_figma/screens/community_screen.dart';
+import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
+import 'package:flutter_application_with_figma/dio_setup.dart';
 
 class PriceDetailScreen extends StatelessWidget {
   final CombinedFishInfo combinedFishInfo;
@@ -125,9 +131,46 @@ class PriceDetailScreen extends StatelessWidget {
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
         currentIndex: 3,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pop(context);
+        onTap: (index) async {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CommunityScreen()),
+            );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const MarketPriceScreen()),
+            );
+          } else if (index == 4) {
+            // ✅ 마이페이지 클릭 시 세션 상태 확인 후 분기
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              // 오류 발생 시 기본 마이페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
           }
         },
         items: const [
@@ -206,7 +249,7 @@ class _PriceRow extends StatelessWidget {
 String getAssetImageForFish(String fishName) {
   switch (fishName) {
     case '감성돔':
-      return 'assets/images/gamseungdom.jpg';
+      return 'assets/images/gamseongdom.jpg';
     case '점농어':
       return 'assets/images/jeomnongeo.jpg';
     case '농어':
