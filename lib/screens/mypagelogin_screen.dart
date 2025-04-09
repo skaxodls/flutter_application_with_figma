@@ -16,6 +16,8 @@ import 'package:flutter_application_with_figma/screens/trade_history_screen.dart
 import 'package:flutter_application_with_figma/screens/local_post_screen.dart';
 import 'package:flutter_application_with_figma/screens/content_reader_screen.dart';
 
+import 'package:flutter_application_with_figma/dio_setup.dart';
+
 class MyPageLoginScreen extends StatefulWidget {
   const MyPageLoginScreen({super.key});
 
@@ -142,7 +144,7 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
         currentIndex: 4,
-        onTap: (index) {
+        onTap: (index) async{
           if (index == 0) {
             Navigator.pushReplacement(
               context,
@@ -166,11 +168,27 @@ class _MyPageLoginScreenState extends State<MyPageLoginScreen> {
                   builder: (context) => const MarketPriceScreen()),
             );
           } else if (index == 4) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const MyPageLoginScreen()),
-            );
+            // ✅ 마이페이지 클릭 시 세션 상태 확인 후 분기
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              // 오류 발생 시 기본 마이페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
           }
         },
         items: const [
