@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart'; // 전역 dio 인스턴스 import
+import 'home_screen.dart';
+import 'package:flutter_application_with_figma/screens/community_screen.dart';
+import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
+import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
+import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'package:flutter_application_with_figma/screens/content_reader_screen.dart'; // ContentReaderScreen import
 
 // 거래 데이터를 표현하는 모델 클래스 (buyer_name 필드 사용)
@@ -327,7 +333,57 @@ class _TradeCalendarScreenState extends State<TradeCalendarScreen> {
         unselectedItemColor: Colors.black,
         type: BottomNavigationBarType.fixed,
         currentIndex: 4,
-        onTap: (index) {},
+        onTap: (index) async {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const HomeScreen()), // ✅ 홈 화면 이동
+            );
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const CommunityScreen()), // ✅ 커뮤니티 화면 이동
+            );
+          } else if (index == 2) {
+            // 내 포인트 버튼 클릭 시
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MyPointScreen()),
+            );
+          } else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const MarketPriceScreen()), // ✅ 싯가 화면 이동
+            );
+          } else if (index == 4) {
+            // ✅ 마이페이지 클릭 시 세션 상태 확인 후 분기
+            try {
+              final response = await dio.get('/api/check_session');
+              final loggedIn = response.statusCode == 200 &&
+                  response.data['logged_in'] == true;
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => loggedIn
+                      ? const MyPageLoginScreen()
+                      : const MyPageScreen(),
+                ),
+              );
+            } catch (e) {
+              // 오류 발생 시 기본 마이페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPageScreen()),
+              );
+            }
+          }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
           BottomNavigationBarItem(icon: Icon(Icons.message), label: "커뮤니티"),
