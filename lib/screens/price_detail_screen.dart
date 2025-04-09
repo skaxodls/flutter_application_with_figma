@@ -6,6 +6,7 @@ import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
 import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/dio_setup.dart';
+import 'home_screen.dart';
 
 class PriceDetailScreen extends StatelessWidget {
   final CombinedFishInfo combinedFishInfo;
@@ -132,7 +133,12 @@ class PriceDetailScreen extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
         currentIndex: 3,
         onTap: (index) async {
-          if (index == 1) {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CommunityScreen()),
