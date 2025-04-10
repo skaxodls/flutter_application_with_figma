@@ -6,6 +6,7 @@ import 'package:flutter_application_with_figma/screens/mypagelogin_screen.dart';
 import 'package:flutter_application_with_figma/screens/mypage_screen.dart';
 import 'package:flutter_application_with_figma/screens/community_screen.dart';
 import 'package:flutter_application_with_figma/screens/my_point_screen.dart';
+import 'package:flutter_application_with_figma/screens/market_price_screen.dart';
 import 'home_screen.dart';
 
 class LocalPostScreen extends StatefulWidget {
