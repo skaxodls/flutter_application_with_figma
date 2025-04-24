@@ -1719,4 +1719,4 @@ def check_session_status():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # 테이블 생성 (이미 존재하면 영향 없음)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8080)

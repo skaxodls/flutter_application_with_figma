@@ -4,50 +4,85 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
-final dio = Dio();
-final cookieJar = CookieJar();
+/// ─────────────────────────────────────────────
+///  Shared Dio instance + Cookie storage
+/// ─────────────────────────────────────────────
+final Dio dio = Dio();
+final CookieJar cookieJar = CookieJar();
 
+/// ─────────────────────────────────────────────
+///  (1) Check if device is an emulator / simulator
+/// ─────────────────────────────────────────────
 Future<bool> _isEmulator() async {
-  final deviceInfo = DeviceInfoPlugin();
+  final info = DeviceInfoPlugin();
   if (Platform.isAndroid) {
-    final androidInfo = await deviceInfo.androidInfo;
-    return !androidInfo.isPhysicalDevice; // 에뮬레이터면 false가 반환되므로 반전
+    final android = await info.androidInfo;
+    return !android.isPhysicalDevice; // true → emulator
   } else if (Platform.isIOS) {
-    final iosInfo = await deviceInfo.iosInfo;
-    return !iosInfo.isPhysicalDevice;
+    final ios = await info.iosInfo;
+    return !ios.isPhysicalDevice;
   }
   return false;
 }
 
+/// ─────────────────────────────────────────────
+///  (2) Get current baseUrl from remote Gist (optional)
+///      Replace with your RAW Gist URL
+/// ─────────────────────────────────────────────
+const String _gistRaw =
+    'https://gist.githubusercontent.com/skaxodls/5df5c6940678d6bb257e40f0e849f6f8/raw/615668912110e5cc72b85c5ff502917a0eb0bac7/baseurl.txt';
+
+Future<String?> _loadUrlFromGist() async {
+  try {
+    final res = await Dio().get<String>(
+      _gistRaw,
+      options: Options(responseType: ResponseType.plain),
+    );
+    final url = res.data?.trim();
+    if (url != null && url.startsWith('http')) return url;
+  } catch (_) {}
+  return null; // network fail → fall back
+}
+
+/// ─────────────────────────────────────────────
+///  (3) Setup Dio
+/// ─────────────────────────────────────────────
 Future<void> setupDio() async {
-  String baseUrl;
+  final bool isEmu = await _isEmulator();
 
-  // Android와 iOS 둘 다 에뮬레이터/시뮬레이터 여부 확인
-  bool emulator = await _isEmulator();
-
+  // ── local default urls ─────────────────────
+  late String baseUrl;
   if (Platform.isAndroid) {
-    if (emulator) {
-      // 에뮬레이터: 안드로이드 에뮬레이터는 호스트의 localhost에 접근하기 위해 10.0.2.2 사용
-      baseUrl = 'http://10.0.2.2:5000';
-    } else {
-      // 실제 Android 기기: 개발 PC 또는 외부 서버의 IP 주소 사용 (예: 192.168.1.100)
-      baseUrl = 'http://192.168.1.100:5000';
-    }
+    baseUrl = isEmu
+        ? 'http://10.0.2.2:8080' // Android emulator → host 8080
+        : 'http://192.168.0.100:8080'; // replace with PC LAN IP if needed
   } else if (Platform.isIOS) {
-    if (emulator) {
-      // iOS 시뮬레이터: 서버가 같은 Mac에서 실행된다면 localhost 사용 가능
-      baseUrl = 'http://127.0.0.1:5000';
-      // 만약 외부 PC의 서버를 사용한다면, 해당 IP 주소를 사용해야 합니다.
-    } else {
-      // 실제 iOS 기기: 개발 PC 또는 외부 서버의 IP 주소 사용
-      baseUrl = 'http://192.168.1.100:5000';
-    }
+    baseUrl = isEmu
+        ? 'http://127.0.0.1:8080' // iOS simulator
+        : 'http://192.168.0.100:8080';
   } else {
-    // 다른 플랫폼의 경우 기본값 설정
-    baseUrl = 'http://127.0.0.1:5000';
+    baseUrl = 'http://127.0.0.1:8080';
   }
 
-  dio.options.baseUrl = baseUrl;
-  dio.options.headers['Content-Type'] = 'application/json';
+  // ── overwrite with remote (ngrok) if available ─
+  final remote = await _loadUrlFromGist();
+  if (remote != null) baseUrl = remote;
+
+  // ── apply to Dio ────────────────────────────
+  dio.options
+    ..baseUrl = baseUrl
+    ..headers['Content-Type'] = 'application/json'
+    ..connectTimeout = const Duration(seconds: 15)
+    ..receiveTimeout = const Duration(seconds: 15);
+
   dio.interceptors.add(CookieManager(cookieJar));
+  dio.interceptors.add(
+    LogInterceptor(
+      requestBody: true,
+      responseBody: true,
+      logPrint: (o) => print('[DIO] $o'),
+    ),
+  );
+
+  print('✅ Dio baseUrl: $baseUrl');
 }
