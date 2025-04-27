@@ -27,7 +27,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String serverStatus = "Flask 연결 확인 중..."; // 🔧 서버 연결 상태 저장 변수 추가
+  //String serverStatus = "Flask 연결 확인 중..."; // 🔧 서버 연결 상태 저장 변수 추가
   bool isLoggedIn = false;
   String tideInfo = "물때 정보를 가져오는 중..."; // 물때 정보 초기값
 
@@ -128,17 +128,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // 🔧 Flask 서버 연결 상태를 표시하는 컨테이너 (SingleChildScrollView 위에 추가)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            color: Colors.black12,
-            child: Text(
-              "서버 연결 상태: $serverStatus", // 🔧 연결 상태 출력
-              style: const TextStyle(fontSize: 14, color: Colors.black),
-              textAlign: TextAlign.center,
-            ),
-          ),
           Expanded(
             child: SingleChildScrollView(
               child: Column(

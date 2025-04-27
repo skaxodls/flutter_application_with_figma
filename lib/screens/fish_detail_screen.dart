@@ -38,11 +38,33 @@ class FishDetailScreen extends StatefulWidget {
 class _FishDetailScreenState extends State<FishDetailScreen> {
   // 낚시 로그 리스트 (사용자가 추가한 로그 저장)
   final List<Map<String, dynamic>> _fishingLogs = [];
+  String? _marketPriceText;
 
   @override
   void initState() {
     super.initState();
     _fetchFishingLogs(); // 서버에서 낚시 로그 불러오기
+    _fetchMarketPrice();
+  }
+
+// (State 클래스 안) _fetchMarketPrice 수정 — 파라미터 없이 전체 목록 받아서 클라이언트에서 필터
+  Future<void> _fetchMarketPrice() async {
+    try {
+      final response = await dio.get('/api/market_price'); // ⬅️ 파라미터 제거
+
+      if (response.statusCode == 200 && response.data is List) {
+        // 받은 전체 목록 중에서 현재 물고기(fish_id)만 추출
+        final pricesForFish = (response.data as List<dynamic>)
+            .where((p) => p['fish_id'] == widget.fishNumber)
+            .map((p) => '${p["size_category"]}: ${p["price"]}원')
+            .join('\n');
+
+        setState(() => _marketPriceText =
+            pricesForFish.isNotEmpty ? pricesForFish : '정보 없음');
+      }
+    } catch (e) {
+      print('❌ 시가 로드 실패: $e');
+    }
   }
 
 // 서버에서 낚시 로그 데이터를 가져오는 함수
@@ -396,6 +418,16 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     }
   }
 
+  String _getClosedSeasonContent() {
+    if (widget.fishNumber == 4) {
+      return "금어기: 05.01~05.31\n금지 체장: 25cm 이하";
+    } else if (widget.fishNumber == 2) {
+      return "금어기: -\n금지 체장: 30cm 이하";
+    } else {
+      return "금어기: -\n금지 체장: -";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -456,12 +488,22 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
               },
             ),
             const SizedBox(height: 16),
-            // 🔹 형태/생태 정보 섹션: fish 테이블의 morphological_info 사용
-            _InfoCard(title: "형태/생태 정보", content: widget.morphologicalInfo),
+
+            // 🔹 계통분류 섹션
+            _InfoCard(
+              title: "계통분류",
+              content: widget.taxonomy,
+            ),
+            const SizedBox(height: 4),
+            // 🔹 싯가가 섹션
+            _InfoCard(
+              title: "싯가",
+              content: _marketPriceText ?? "정보 없음",
+            ),
             // 🔹 금어기 & 금지 체장 정보 섹션
             _CombinedInfoCard(
               title: "금어기 & 금지 체장",
-              content: "금어기: 시작일~종료일\n금지 체장: 최소크기~최대크기",
+              content: _getClosedSeasonContent(), // ← 헬퍼 함수 사용
             ),
             // 🔹 낚시 포인트 & 지도 섹션 (FutureBuilder로 fish_region 정보 호출)
             FutureBuilder<List<dynamic>>(
@@ -492,7 +534,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                "낚시 포인트",
+                                "분포",
                                 style: TextStyle(
                                     fontSize: 16, fontWeight: FontWeight.bold),
                               ),
@@ -521,18 +563,10 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
                 );
               },
             ),
-            const SizedBox(height: 16),
-            // 🔹 싯가가 섹션
-            _InfoCard(
-              title: "싯가",
-              content: "싯가 정보",
-            ),
+
             const SizedBox(height: 4),
-            // 🔹 계통분류 섹션
-            _InfoCard(
-              title: "계통분류",
-              content: widget.taxonomy,
-            ),
+            // 🔹 형태/생태 정보 섹션: fish 테이블의 morphological_info 사용
+            _InfoCard(title: "형태/생태 정보", content: widget.morphologicalInfo),
             const SizedBox(height: 16),
             // 낚시 로그 섹션 (로그 목록 출력)
             if (_fishingLogs.isNotEmpty) ...[

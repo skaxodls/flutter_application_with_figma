@@ -30,7 +30,7 @@ Future<bool> _isEmulator() async {
 ///      Replace with your RAW Gist URL
 /// ─────────────────────────────────────────────
 const String _gistRaw =
-    'https://gist.githubusercontent.com/skaxodls/5df5c6940678d6bb257e40f0e849f6f8/raw/615668912110e5cc72b85c5ff502917a0eb0bac7/baseurl.txt';
+    'https://gist.githubusercontent.com/skaxodls/5df5c6940678d6bb257e40f0e849f6f8/raw/bf5d259249dfcff90d99376a9d27a823fa688088/baseurl.txt';
 
 Future<String?> _loadUrlFromGist() async {
   try {
