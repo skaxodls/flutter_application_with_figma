@@ -123,10 +123,20 @@ class _ContentReaderScreenState extends State<ContentReaderScreen> {
   }
 
   void _showBuyerSelectionDialog() {
-    final commenters = _comments
-        .map((c) => {'uid': c['uid'], 'username': c['username']})
-        .toSet()
-        .toList(); // 중복 제거
+    final commenters = (() {
+      final seen = <int>{};
+      return _comments
+          // 1) 글 작성자 제외
+          .where((c) => c['uid'] != widget.postUid)
+          // 2) seen.add()가 true인, 처음 등장한 uid만 통과
+          .where((c) => seen.add(c['uid'] as int))
+          // 3) map
+          .map((c) => {
+                'uid': c['uid'],
+                'username': c['username'],
+              })
+          .toList();
+    })();
 
     if (commenters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
