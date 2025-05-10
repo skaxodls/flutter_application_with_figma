@@ -183,7 +183,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                             ),
                           ),
                           onPressed: _handleFishConfirmation,
-                          child: const Text("상세 정보 보기"),
+                          child: const Text("상세 정보"),
                         ),
                       ),
                       const SizedBox(width: 8),
