@@ -72,8 +72,10 @@ def detect_and_classify(image):
     # PIL을 사용하여 파일 객체에서 이미지 로드 (원본 이미지 변형 최소화)
     try:
         pil_image = Image.open(image).convert("RGB")
+        
     except Exception:
         return {"error": "Invalid image"}
+
     
     # PIL 이미지 -> NumPy 배열 (RGB)
     img_rgb = np.array(pil_image)
@@ -81,8 +83,10 @@ def detect_and_classify(image):
     # 🔹 YOLOv8을 사용하여 물고기 탐지
     results = yolo_model(img_rgb)
     if len(results[0].boxes) == 0:
+        print("🔴 물고기 탐지 실패: 바운딩 박스 없음")
         return {"error": "No fish detected"}
-
+    
+  
     # 🔹 가장 확률이 높은 바운딩 박스 선택
     best_box = max(results[0].boxes, key=lambda b: b.conf)
     x1, y1, x2, y2 = map(int, best_box.xyxy[0].tolist())
@@ -91,7 +95,7 @@ def detect_and_classify(image):
     #    시각화 함수에서는 OpenCV 함수를 쓰므로, BGR 변환이 필요
     #    그러나 여기서 img_rgb는 이미 RGB이므로, 아래서 시각화 전 변환해줍니다.
     cropped_fish = img_rgb[y1:y2, x1:x2]
-
+  
     # 🔹 Hybrid 모델로 물고기 종 분류
     cropped_fish_pil = Image.fromarray(cropped_fish)
     input_tensor = transform(cropped_fish_pil).unsqueeze(0).to(device)
@@ -104,6 +108,7 @@ def detect_and_classify(image):
     confidence_score = confidence.item() * 100  # 퍼센트 변환
 
     # 터미널에 결과 출력
+ 
     print(f"\n🎯 **분류 결과** 🎯")
     print(f"🔹 Ground Truth (from filename): {true_label}")
     print(f"🔹 예측된 물고기 종: {predicted_class}")

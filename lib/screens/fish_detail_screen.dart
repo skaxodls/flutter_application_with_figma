@@ -428,6 +428,112 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
     }
   }
 
+  /// 분류 결과 피드백용 다이얼로그
+  void _showFeedbackDialog() {
+    String? feedbackImagePath;
+    final TextEditingController feedbackController = TextEditingController();
+    final ImagePicker _picker = ImagePicker();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('분류 결과 피드백'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 이미지 선택 영역
+                    GestureDetector(
+                      onTap: () async {
+                        final XFile? img = await _picker.pickImage(
+                            source: ImageSource.gallery);
+                        if (img != null) {
+                          setState(() => feedbackImagePath = img.path);
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: feedbackImagePath != null
+                            ? Image.file(File(feedbackImagePath!),
+                                fit: BoxFit.cover)
+                            : const Center(child: Text('피드백할 이미지 선택')),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // 어종명 입력
+                    TextField(
+                      controller: feedbackController,
+                      decoration: const InputDecoration(
+                        labelText: '어종명 입력',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                // 기존 취소 버튼
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('취소'),
+                ),
+                // 변경된 확인 버튼 (TextButton 으로)
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // 피드백 다이얼로그 닫기
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('소중한 피드백이 반영되었습니다! 😊'),
+                      ),
+                    );
+                  },
+                  child: const Text('확인'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 아이콘 클릭 후 선택지 보여주기
+  void _showActionSelectionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return SimpleDialog(
+          children: [
+            SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context);
+                _showFeedbackDialog();
+              },
+              child: const Text('분류 결과 피드백'),
+            ),
+            SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context);
+                _showAddLogDialog(); // 로그 추가 실행
+              },
+              child: const Text('낚시 로그 추가'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -443,7 +549,7 @@ class _FishDetailScreenState extends State<FishDetailScreen> {
         actions: [
           IconButton(
             icon: Image.asset('assets/icons/plus_icon.png', height: 24),
-            onPressed: _showAddLogDialog,
+            onPressed: _showActionSelectionDialog, // ← 여기를 변경
           ),
         ],
       ),

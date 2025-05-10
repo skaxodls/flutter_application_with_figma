@@ -5,6 +5,7 @@ import 'package:flutter_application_with_figma/dio_setup.dart';
 import 'fish_detail_screen.dart';
 import 'select_photo_screen.dart';
 import 'package:dio/dio.dart';
+import 'home_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
   final File selectedImage;
@@ -57,7 +58,29 @@ class _LoadingScreenState extends State<LoadingScreen> {
         _showError("서버 오류: ${response.statusCode}");
       }
     } catch (e) {
-      _showError("서버 요청 실패: $e");
+      // 서버 요청 실패 시 팝업을 띄우고 이미지 재선택 화면으로 이동
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text("오류"),
+          content: const Text("물고기 탐지에 실패하였습니다."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // 다이얼로그 닫기
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SelectPhotoScreen(),
+                  ),
+                );
+              },
+              child: const Text("확인"),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -100,28 +123,12 @@ class _LoadingScreenState extends State<LoadingScreen> {
     );
   }
 
-  // ✅ "모르겠어요" 또는 다른 버튼 동작: 단순 상세 화면으로 이동
-  void _navigateToDetailScreen() {
-    Navigator.pop(context); // 팝업 닫기
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => FishDetailScreen(
-          fishNumber: fishId,
-          fishName: fishName,
-          scientificName: scientificName,
-          morphologicalInfo: morphologicalInfo,
-          taxonomy: taxonomy,
-        ),
-      ),
-    );
-  }
-
-  void _navigateToSelectImageScreen() {
+  Future<void> _navigateToHomeScreen() async {
     Navigator.pop(context);
+    await _insertCaughtFish(fishId);
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => SelectPhotoScreen()),
+      MaterialPageRoute(builder: (context) => HomeScreen()),
     );
   }
 
@@ -163,35 +170,20 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // "모르겠어요" 버튼 (단순 상세 화면 이동)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 122, 127, 131),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _navigateToDetailScreen,
-                    child: const Text("모르겠어요"),
-                  ),
-                  const SizedBox(height: 8),
-                  // "맞아요"와 "아니에요" 버튼
                   Row(
                     children: [
                       // "맞아요" 버튼: 잡은 물고기 추가 후 상세 화면 이동
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                const Color.fromARGB(255, 219, 97, 70),
+                            backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           onPressed: _handleFishConfirmation,
-                          child: const Text("맞아요"),
+                          child: const Text("상세 정보 보기"),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -205,8 +197,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: _navigateToSelectImageScreen,
-                          child: const Text("아니에요"),
+                          onPressed: _navigateToHomeScreen,
+                          child: const Text("확인"),
                         ),
                       ),
                     ],
