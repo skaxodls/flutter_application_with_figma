@@ -54,9 +54,9 @@ class _WriteScreenState extends State<WriteScreen> {
     final content = _contentController.text;
 
     if (title.isEmpty || content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('제목과 설명을 입력해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('제목과 설명을 입력해주세요.')));
       return;
     }
 
@@ -73,9 +73,9 @@ class _WriteScreenState extends State<WriteScreen> {
           },
         );
         if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('게시글이 수정되었습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('게시글이 수정되었습니다.')));
           Navigator.pop(context, true);
         } else {
           throw Exception('수정 실패');
@@ -86,7 +86,7 @@ class _WriteScreenState extends State<WriteScreen> {
           'title': title,
           'price': price.toString(),
           'content': content,
-          'status': _selectedStatus,
+          'status': '판매중',
           if (_selectedImage != null)
             'images': await MultipartFile.fromFile(
               _selectedImage!.path,
@@ -107,9 +107,9 @@ class _WriteScreenState extends State<WriteScreen> {
         // );
 
         if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('게시글이 등록되었습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('게시글이 등록되었습니다.')));
           Navigator.pop(context, true);
         } else {
           throw Exception('작성 실패');
@@ -119,7 +119,8 @@ class _WriteScreenState extends State<WriteScreen> {
       print('에러: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('게시글 ${isEditMode ? '수정' : '작성'} 중 오류가 발생했습니다.')),
+          content: Text('게시글 ${isEditMode ? '수정' : '작성'} 중 오류가 발생했습니다.'),
+        ),
       );
     }
   }
@@ -137,8 +138,10 @@ class _WriteScreenState extends State<WriteScreen> {
         ),
         title: Text(
           isEditMode ? "게시글 수정" : "내 물고기 팔기",
-          style:
-              const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -173,7 +176,9 @@ class _WriteScreenState extends State<WriteScreen> {
             const Text("제목"),
             const SizedBox(height: 8),
             _CustomTextField(
-                controller: _titleController, hintText: "제목을 입력하세요"),
+              controller: _titleController,
+              hintText: "제목을 입력하세요",
+            ),
             const SizedBox(height: 16),
             const Text("가격"),
             const SizedBox(height: 8),
@@ -191,33 +196,39 @@ class _WriteScreenState extends State<WriteScreen> {
               maxLines: 5,
             ),
             const SizedBox(height: 16),
-            const Text("상태"),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _selectedStatus,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
+            if (isEditMode) ...[
+              const Text("상태"),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedStatus,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                items:
+                    _statuses.map((status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(status),
+                      );
+                    }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedStatus = value!;
+                  });
+                },
               ),
-              items: _statuses.map((status) {
-                return DropdownMenuItem<String>(
-                  value: status,
-                  child: Text(status),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedStatus = value!;
-                });
-              },
-            ),
-            const SizedBox(height: 30),
+              const SizedBox(height: 30),
+            ],
+
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -232,9 +243,10 @@ class _WriteScreenState extends State<WriteScreen> {
                 child: Text(
                   isEditMode ? "수정 완료" : "작성 완료",
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -278,8 +290,10 @@ class _CustomTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFF4A68EA)),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
       ),
     );
   }
