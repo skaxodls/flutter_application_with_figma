@@ -31,7 +31,7 @@ Future<void> setupDio() async {
       baseUrl = 'http://10.0.2.2:8080';
     } else {
       // 실제 Android 기기: 개발 PC 또는 외부 서버의 IP 주소 사용 (예: 192.168.1.100)
-      baseUrl = 'https://2e0d-211-57-11-185.ngrok-free.app';
+      baseUrl = 'https://0b04-182-225-231-166.ngrok-free.app';
     }
   } else if (Platform.isIOS) {
     if (emulator) {
