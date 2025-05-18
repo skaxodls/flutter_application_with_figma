@@ -270,7 +270,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }),
                               _MenuItem(
                                   image: 'assets/icons/fish_icon3.png',
-                                  label: "유사종"),
+                                  label: "유사종",
+                                  onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text("알림"),
+                                      content: const Text("서비스 준비중입니다."),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text("확인"),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                               _MenuItem(
                                   image: 'assets/icons/contents_icon.png',
                                   label: "콘텐츠",
