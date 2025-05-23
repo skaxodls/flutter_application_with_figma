@@ -183,24 +183,11 @@ class _LoadingScreenState extends State<LoadingScreen> {
                             ),
                           ),
                           onPressed: _handleFishConfirmation,
-                          child: const Text("상세 정보"),
+                          child: const Text("상세 정보 확인"),
                         ),
                       ),
                       const SizedBox(width: 8),
                       // "아니에요" 버튼: 이미지 다시 선택 화면으로 이동
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _navigateToHomeScreen,
-                          child: const Text("확인"),
-                        ),
-                      ),
                     ],
                   ),
                 ],
