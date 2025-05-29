@@ -1,7 +1,7 @@
 import pandas as pd
 
 # 엑셀 파일 경로 설정 (raw string 사용)
-excel_file = r"C:\Users\n3225\OneDrive\Desktop\통계청 행정구역코드 - sido_sgg_emd_master.xlsx"
+excel_file = r"C:\Users\n3225\OneDrive\Desktop\캡디2\통계청 행정구역코드 - sido_sgg_emd_master.xlsx"
 
 # 엑셀 파일 읽기
 df = pd.read_excel(excel_file)

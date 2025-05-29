@@ -441,9 +441,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
                             if (selectedStationId != null) {
                               fetchData(selectedStationId!);
                             } else {
-                              setState(() {
-                                apiResult = "관측소를 선택해주세요.";
-                              });
+                              // ScaffoldMessenger를 이용해 스낵바로 알림 띄우기
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("관측소를 선택해주세요!"),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
                             }
                           },
                           child: const Text("데이터 요청"),
